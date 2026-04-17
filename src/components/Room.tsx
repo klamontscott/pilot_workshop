@@ -5,43 +5,30 @@ import { useStore } from '../lib/store'
 import * as THREE from 'three'
 
 const LERP_ALPHA = 0.22
-const HOVER_LERP = 0.45 // ~0.1s to 95% at 60fps — near-instant on/off
-const BACKLIGHT_HOVER: Record<string, number> = {
-  basketball: 400,
-  camera: 400,
-  laptop: 1000,
-  bookshelf: 400,
-}
+const HOVER_LERP = 0.45
 
 type InteractiveId = 'pendant' | 'camera' | 'basketball' | 'laptop' | 'bookshelf'
 
-// Hover color by lamp state
+// Shelf items use color tint (no bloom bleed). Laptop uses backlight (not in shelf).
+const SHELF_ITEMS: Set<InteractiveId> = new Set(['basketball', 'camera', 'bookshelf'])
+const HOVER_TINT = new THREE.Color('#FFBB7A')
+
+// Laptop backlight config (only non-shelf item with backlight)
+const LAPTOP_BACKLIGHT_INTENSITY = 1000
+const LAPTOP_BACKLIGHT_POSITION: [number, number, number] = [213.9, 34.09, -82.259]
+const LAPTOP_BACKLIGHT_DISTANCE = 90
+
+// Hover color by lamp state (for laptop backlight)
 const HOVER_COLOR_WARM = new THREE.Color('#FFBB7A')
 const HOVER_COLOR_COOL = new THREE.Color('#4488ff')
-
-// Backlight positions from Blender empties (converted to Y-up)
-type BacklightId = Exclude<InteractiveId, 'pendant'>
-const BACKLIGHT_POSITIONS: Record<BacklightId, [number, number, number]> = {
-  basketball: [214.85, 31.765, -169.94],
-  camera: [219.83, 68.206, -179.63],
-  laptop: [213.9, 34.09, -82.259],
-  bookshelf: [217.99, 46.921, -165.96],
-}
-const BACKLIGHT_DISTANCE: Record<BacklightId, number> = {
-  basketball: 50,
-  camera: 30,
-  laptop: 90,
-  bookshelf: 60,
-}
 
 // Mechanical light switch click (noise burst + low-pass filter)
 function playClickSound() {
   const ctx = new (window.AudioContext || (window as /* eslint-disable-line */ any).webkitAudioContext)()
-  const bufferSize = ctx.sampleRate * 0.03 // 30ms
+  const bufferSize = ctx.sampleRate * 0.03
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
   const data = buffer.getChannelData(0)
 
-  // Sharp noise burst that decays quickly — sounds like a mechanical snap
   for (let i = 0; i < bufferSize; i++) {
     const t = i / bufferSize
     data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 10)
@@ -50,7 +37,6 @@ function playClickSound() {
   const source = ctx.createBufferSource()
   source.buffer = buffer
 
-  // Low-pass filter to remove harsh digital highs
   const filter = ctx.createBiquadFilter()
   filter.type = 'lowpass'
   filter.frequency.value = 2000
@@ -72,6 +58,9 @@ const hitMat = new THREE.MeshBasicMaterial({
   side: THREE.DoubleSide,
 })
 
+// Stored original color per material for shelf item hover tinting
+type SavedColor = { mat: THREE.MeshStandardMaterial; original: THREE.Color }
+
 export default function Room() {
   const toggleLight = useStore((state) => state.toggleLight)
   const lightOn = useStore((state) => state.lightOn)
@@ -83,10 +72,9 @@ export default function Room() {
   const { camera, gl } = useThree()
   const pendantMatRef = useRef<THREE.MeshStandardMaterial | null>(null)
 
-  const basketballLightRef = useRef<THREE.PointLight>(null)
-  const cameraLightRef = useRef<THREE.PointLight>(null)
+  // Laptop backlight (only non-shelf backlight)
   const laptopLightRef = useRef<THREE.PointLight>(null)
-  const bookshelfLightRef = useRef<THREE.PointLight>(null)
+  const laptopLightTarget = useRef(0)
 
   // Hit volume refs
   const basketballHitRef = useRef<THREE.Mesh>(null)
@@ -95,9 +83,13 @@ export default function Room() {
   const laptopHitRef = useRef<THREE.Mesh>(null)
   const bookshelfHitRef = useRef<THREE.Mesh>(null)
 
-  const backlightTargets = useRef<Record<InteractiveId, number>>({
-    pendant: 0, camera: 0, basketball: 0, laptop: 0, bookshelf: 0,
+  // Shelf item materials for color tinting
+  const shelfMaterials = useRef<Record<string, SavedColor[]>>({
+    basketball: [],
+    camera: [],
+    bookshelf: [],
   })
+
   const currentHover = useRef<InteractiveId | null>(null)
   const raycaster = useRef(new THREE.Raycaster())
   const mouse = useRef(new THREE.Vector2())
@@ -107,7 +99,7 @@ export default function Room() {
   const fpsTime = useRef(performance.now())
   const statsLogged = useRef(false)
 
-  // Setup: shadows, emissives, position hit volumes
+  // Setup: shadows, emissives, position hit volumes, collect shelf materials
   useEffect(() => {
     const box = new THREE.Box3()
     const center = new THREE.Vector3()
@@ -119,8 +111,10 @@ export default function Room() {
     let meshCount = 0
     let lightCount = 0
 
+    const basketballMats: SavedColor[] = []
+    const cameraMats: SavedColor[] = []
+
     scene.traverse((child) => {
-      // Count scene objects for diagnostics
       if ((child as THREE.Light).isLight) lightCount++
 
       if ((child as THREE.Mesh).isMesh) {
@@ -171,6 +165,7 @@ export default function Room() {
           }
         }
 
+        // Camera mesh — collect materials for tint hover
         if (lname.includes('canon_m50') && !cameraMesh) {
           cameraMesh = child
           const mesh = child as THREE.Mesh
@@ -178,14 +173,17 @@ export default function Room() {
           if (origMat && !origMat.userData._brightened) {
             const mat = origMat.clone()
             mat.color.multiplyScalar(1.8)
-            mat.emissive = new THREE.Color('#3a1800')
-            mat.emissiveIntensity = 0.3
             mat.userData._brightened = true
             mat.needsUpdate = true
             mesh.material = mat
             origMat.dispose()
+            cameraMats.push({ mat, original: mat.color.clone() })
+          } else if (origMat) {
+            cameraMats.push({ mat: origMat, original: origMat.color.clone() })
           }
         }
+
+        // Basketball mesh — collect materials for tint hover
         if ((lname.includes('bola_spalding') || lname.includes('nbaa')) && !basketballMesh) {
           basketballMesh = child
           const mesh = child as THREE.Mesh
@@ -193,19 +191,42 @@ export default function Room() {
           if (origMat && !origMat.userData._brightened) {
             const mat = origMat.clone()
             mat.color.multiplyScalar(1.8)
-            mat.emissive = new THREE.Color('#3a1800')
-            mat.emissiveIntensity = 0.3
             mat.userData._brightened = true
             mat.needsUpdate = true
             mesh.material = mat
             origMat.dispose()
+            basketballMats.push({ mat, original: mat.color.clone() })
+          } else if (origMat) {
+            basketballMats.push({ mat: origMat, original: origMat.color.clone() })
           }
         }
+
         if (lname.includes('group1076') && lname.includes('group1091') && !laptopMesh) laptopMesh = child
       }
     })
 
-    // Log scene stats once
+    shelfMaterials.current.basketball = basketballMats
+    shelfMaterials.current.camera = cameraMats
+
+    // Collect bookshelf materials from Mesh1071
+    const bookshelfMats: SavedColor[] = []
+    const shelfRoot = scene.getObjectByName('Mesh1071')
+    if (shelfRoot) {
+      shelfRoot.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const rawMat = (child as THREE.Mesh).material
+          const mats = Array.isArray(rawMat) ? rawMat : [rawMat]
+          for (const m of mats) {
+            const stdMat = m as THREE.MeshStandardMaterial
+            if (stdMat?.color) {
+              bookshelfMats.push({ mat: stdMat, original: stdMat.color.clone() })
+            }
+          }
+        }
+      })
+    }
+    shelfMaterials.current.bookshelf = bookshelfMats
+
     if (!statsLogged.current) {
       statsLogged.current = true
       console.log(`[SCENE] meshes: ${meshCount} | lights (in GLB): ${lightCount}`)
@@ -255,6 +276,16 @@ export default function Room() {
     }
   }, [scene])
 
+  // Apply / remove color tint for shelf items
+  const tintShelfItem = useCallback((id: InteractiveId, on: boolean) => {
+    const saved = shelfMaterials.current[id]
+    if (!saved) return
+    for (const { mat, original } of saved) {
+      mat.color.copy(on ? HOVER_TINT : original)
+      mat.needsUpdate = true
+    }
+  }, [])
+
   // Custom raycasting against ONLY the hit volumes
   const hitTest = useCallback((event: PointerEvent): InteractiveId | null => {
     const rect = gl.domElement.getBoundingClientRect()
@@ -289,28 +320,38 @@ export default function Room() {
       if (id === 'pendant' && !useStore.getState().lightOn) id = null
 
       if (id && id !== currentHover.current) {
-        // Instant off for previous hover
-        if (currentHover.current && currentHover.current !== 'pendant') {
-          backlightTargets.current[currentHover.current] = 0
-          const prevRef = getLightRef(currentHover.current)
-          if (prevRef.current) prevRef.current.intensity = 0
+        // Turn off previous hover
+        if (currentHover.current) {
+          if (currentHover.current === 'pendant') {
+            setHoveredObject(null)
+          } else if (SHELF_ITEMS.has(currentHover.current)) {
+            tintShelfItem(currentHover.current, false)
+          } else {
+            // Laptop backlight off
+            laptopLightTarget.current = 0
+            if (laptopLightRef.current) laptopLightRef.current.intensity = 0
+          }
         }
-        if (currentHover.current === 'pendant') setHoveredObject(null)
+
         currentHover.current = id
         if (id === 'pendant') {
           setHoveredObject('pendant')
+        } else if (SHELF_ITEMS.has(id)) {
+          tintShelfItem(id, true)
         } else {
-          backlightTargets.current[id] = BACKLIGHT_HOVER[id]
+          // Laptop backlight on
+          laptopLightTarget.current = LAPTOP_BACKLIGHT_INTENSITY
         }
         canvas.style.cursor = 'pointer'
       } else if (!id && currentHover.current) {
-        // Instant off on mouseleave
+        // Turn off current hover
         if (currentHover.current === 'pendant') {
           setHoveredObject(null)
+        } else if (SHELF_ITEMS.has(currentHover.current)) {
+          tintShelfItem(currentHover.current, false)
         } else {
-          backlightTargets.current[currentHover.current] = 0
-          const ref = getLightRef(currentHover.current)
-          if (ref.current) ref.current.intensity = 0
+          laptopLightTarget.current = 0
+          if (laptopLightRef.current) laptopLightRef.current.intensity = 0
         }
         currentHover.current = null
         canvas.style.cursor = 'default'
@@ -324,7 +365,6 @@ export default function Room() {
         playClickSound()
         const wasOn = useStore.getState().lightOn
         toggleLight()
-        // Kill pendant hover instantly when toggling off
         if (wasOn) {
           setHoveredObject(null)
           currentHover.current = null
@@ -344,10 +384,10 @@ export default function Room() {
       canvas.removeEventListener('click', onClick)
       canvas.style.cursor = 'default'
     }
-  }, [gl, hitTest, toggleLight, setShowPhotoGallery, setShowBasketballGame, setHoveredObject])
+  }, [gl, hitTest, toggleLight, setShowPhotoGallery, setShowBasketballGame, setHoveredObject, tintShelfItem])
 
   useFrame(() => {
-    // FPS counter — logs every 60 frames
+    // FPS counter
     fpsFrames.current++
     const now = performance.now()
     if (now - fpsTime.current >= 1000) {
@@ -364,31 +404,15 @@ export default function Room() {
       )
     }
 
-    // Backlight intensity + color tweens (asymmetric: fast off, normal on)
-    const hoverColor = lightOn ? HOVER_COLOR_WARM : HOVER_COLOR_COOL
-    const lights: [InteractiveId, React.RefObject<THREE.PointLight | null>][] = [
-      ['basketball', basketballLightRef],
-      ['camera', cameraLightRef],
-      ['laptop', laptopLightRef],
-      ['bookshelf', bookshelfLightRef],
-    ]
-    for (const [id, ref] of lights) {
-      if (ref.current) {
-        ref.current.intensity = THREE.MathUtils.lerp(
-          ref.current.intensity, backlightTargets.current[id], HOVER_LERP,
-        )
-        ref.current.color.lerp(hoverColor, HOVER_LERP)
-      }
+    // Laptop backlight lerp
+    if (laptopLightRef.current) {
+      laptopLightRef.current.intensity = THREE.MathUtils.lerp(
+        laptopLightRef.current.intensity, laptopLightTarget.current, HOVER_LERP,
+      )
+      const hoverColor = lightOn ? HOVER_COLOR_WARM : HOVER_COLOR_COOL
+      laptopLightRef.current.color.lerp(hoverColor, HOVER_LERP)
     }
   })
-
-  // Light ref getter
-  const getLightRef = (id: InteractiveId) => {
-    if (id === 'basketball') return basketballLightRef
-    if (id === 'camera') return cameraLightRef
-    if (id === 'bookshelf') return bookshelfLightRef
-    return laptopLightRef
-  }
 
   return (
     <group>
@@ -411,18 +435,15 @@ export default function Room() {
         <boxGeometry args={[12, 80, 25]} />
       </mesh>
 
-      {/* Hover backlights at Blender empty positions */}
-      {(['basketball', 'camera', 'laptop', 'bookshelf'] as BacklightId[]).map((id) => (
-        <pointLight
-          key={id}
-          ref={getLightRef(id)}
-          position={BACKLIGHT_POSITIONS[id]}
-          color="#FFBB7A"
-          intensity={0}
-          distance={BACKLIGHT_DISTANCE[id]}
-          decay={2}
-        />
-      ))}
+      {/* Laptop hover backlight (only non-shelf item) */}
+      <pointLight
+        ref={laptopLightRef}
+        position={LAPTOP_BACKLIGHT_POSITION}
+        color="#FFBB7A"
+        intensity={0}
+        distance={LAPTOP_BACKLIGHT_DISTANCE}
+        decay={2}
+      />
     </group>
   )
 }
