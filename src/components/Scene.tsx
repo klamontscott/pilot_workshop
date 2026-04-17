@@ -194,34 +194,6 @@ function MonitorLights() {
   )
 }
 
-// ── Layer 4: Shelf lights (always on, soft wash per compartment) ─
-
-function ShelfLights() {
-  // Single PointLight per compartment — top-center, pushed slightly forward
-  // toward front lip. decay=1 for gentle, even spread across full shelf.
-  const shelves: [number, number, number][] = [
-    [220, 18, -176],  // Bottom compartment ceiling
-    [220, 40, -176],  // Lower-middle compartment ceiling
-    [220, 61, -176],  // Upper-middle compartment ceiling
-    [220, 82, -176],  // Top compartment ceiling
-  ]
-
-  return (
-    <>
-      {shelves.map((pos, i) => (
-        <pointLight
-          key={i}
-          position={pos}
-          color="#f5e8d8"
-          intensity={8}
-          distance={35}
-          decay={1}
-        />
-      ))}
-    </>
-  )
-}
-
 // ── Left wall fill (toggleable with pendant, hidden off-camera) ──
 
 const FILL_INTENSITY = 230 // bumped 15% to compensate for removed shelf lights
