@@ -228,6 +228,33 @@ export default function Room() {
     positionHitVolume(laptopMesh, laptopHitRef)
   }, [scene, lightOn])
 
+  // Opaque back panel behind bookshelf to block hover glow bleed
+  useEffect(() => {
+    const shelf = scene.getObjectByName('Mesh1071')
+    if (!shelf) return
+
+    const shelfBox = new THREE.Box3().setFromObject(shelf)
+    const size = new THREE.Vector3()
+    const shelfCenter = new THREE.Vector3()
+    shelfBox.getSize(size)
+    shelfBox.getCenter(shelfCenter)
+
+    const geo = new THREE.PlaneGeometry(size.x + 2, size.y + 2)
+    const mat = new THREE.MeshBasicMaterial({
+      color: '#2a1a0f',
+      side: THREE.DoubleSide,
+    })
+    const backPanel = new THREE.Mesh(geo, mat)
+    backPanel.position.set(shelfCenter.x, shelfCenter.y, shelfBox.min.z - 1)
+    scene.add(backPanel)
+
+    return () => {
+      scene.remove(backPanel)
+      geo.dispose()
+      mat.dispose()
+    }
+  }, [scene])
+
   // Custom raycasting against ONLY the hit volumes
   const hitTest = useCallback((event: PointerEvent): InteractiveId | null => {
     const rect = gl.domElement.getBoundingClientRect()
