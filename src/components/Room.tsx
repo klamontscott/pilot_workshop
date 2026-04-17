@@ -25,7 +25,7 @@ const BACKLIGHT_POSITIONS: Record<BacklightId, [number, number, number]> = {
   basketball: [214.85, 31.765, -169.94],
   camera: [219.83, 68.206, -179.63],
   laptop: [213.9, 34.09, -82.259],
-  bookshelf: [221.68, 46.921, -165.96],
+  bookshelf: [217.99, 46.921, -165.96],
 }
 const BACKLIGHT_DISTANCE: Record<BacklightId, number> = {
   basketball: 50,
@@ -380,7 +380,7 @@ export default function Room() {
       <mesh ref={laptopHitRef} material={hitMat} userData={{ interactiveId: 'laptop' }}>
         <boxGeometry args={[15, 10, 15]} />
       </mesh>
-      <mesh ref={bookshelfHitRef} material={hitMat} userData={{ interactiveId: 'bookshelf' }} position={[221.68, 46.921, -165.96]}>
+      <mesh ref={bookshelfHitRef} material={hitMat} userData={{ interactiveId: 'bookshelf' }} position={[217.99, 46.921, -165.96]}>
         <boxGeometry args={[12, 80, 25]} />
       </mesh>
 
