@@ -10,24 +10,28 @@ const BACKLIGHT_HOVER: Record<string, number> = {
   basketball: 1500,
   camera: 2500,
   laptop: 1000,
+  bookshelf: 1500,
 }
 
-type InteractiveId = 'pendant' | 'camera' | 'basketball' | 'laptop'
+type InteractiveId = 'pendant' | 'camera' | 'basketball' | 'laptop' | 'bookshelf'
 
 // Hover color by lamp state
 const HOVER_COLOR_WARM = new THREE.Color('#FFBB7A')
 const HOVER_COLOR_COOL = new THREE.Color('#4488ff')
 
 // Backlight positions from Blender empties (converted to Y-up)
-const BACKLIGHT_POSITIONS: Record<InteractiveId, [number, number, number]> = {
+type BacklightId = Exclude<InteractiveId, 'pendant'>
+const BACKLIGHT_POSITIONS: Record<BacklightId, [number, number, number]> = {
   basketball: [214.85, 31.765, -169.94],
   camera: [219.83, 68.206, -179.63],
   laptop: [213.9, 34.09, -82.259],
+  bookshelf: [221.68, 46.921, -165.96],
 }
-const BACKLIGHT_DISTANCE: Record<InteractiveId, number> = {
+const BACKLIGHT_DISTANCE: Record<BacklightId, number> = {
   basketball: 50,
   camera: 30,
   laptop: 90,
+  bookshelf: 60,
 }
 
 // Mechanical light switch click (noise burst + low-pass filter)
@@ -82,15 +86,17 @@ export default function Room() {
   const basketballLightRef = useRef<THREE.PointLight>(null)
   const cameraLightRef = useRef<THREE.PointLight>(null)
   const laptopLightRef = useRef<THREE.PointLight>(null)
+  const bookshelfLightRef = useRef<THREE.PointLight>(null)
 
   // Hit volume refs
   const basketballHitRef = useRef<THREE.Mesh>(null)
   const cameraHitRef = useRef<THREE.Mesh>(null)
   const pendantHitRef = useRef<THREE.Mesh>(null)
   const laptopHitRef = useRef<THREE.Mesh>(null)
+  const bookshelfHitRef = useRef<THREE.Mesh>(null)
 
   const backlightTargets = useRef<Record<InteractiveId, number>>({
-    pendant: 0, camera: 0, basketball: 0, laptop: 0,
+    pendant: 0, camera: 0, basketball: 0, laptop: 0, bookshelf: 0,
   })
   const currentHover = useRef<InteractiveId | null>(null)
   const raycaster = useRef(new THREE.Raycaster())
@@ -235,6 +241,7 @@ export default function Room() {
       cameraHitRef.current,
       pendantHitRef.current,
       laptopHitRef.current,
+      bookshelfHitRef.current,
     ].filter(Boolean) as THREE.Mesh[]
 
     const hits = raycaster.current.intersectObjects(targets, false)
@@ -300,6 +307,7 @@ export default function Room() {
       else if (id === 'camera') setShowPhotoGallery(true)
       else if (id === 'basketball') setShowBasketballGame(true)
       else if (id === 'laptop') window.open('https://www.keithscottii.com', '_blank')
+      else if (id === 'bookshelf') window.open('https://www.goodreads.com/review/list/71910989-keith-scott-ii?shelf=favorites', '_blank')
     }
 
     canvas.addEventListener('pointermove', onMove)
@@ -335,6 +343,7 @@ export default function Room() {
       ['basketball', basketballLightRef],
       ['camera', cameraLightRef],
       ['laptop', laptopLightRef],
+      ['bookshelf', bookshelfLightRef],
     ]
     for (const [id, ref] of lights) {
       if (ref.current) {
@@ -350,6 +359,7 @@ export default function Room() {
   const getLightRef = (id: InteractiveId) => {
     if (id === 'basketball') return basketballLightRef
     if (id === 'camera') return cameraLightRef
+    if (id === 'bookshelf') return bookshelfLightRef
     return laptopLightRef
   }
 
@@ -370,9 +380,12 @@ export default function Room() {
       <mesh ref={laptopHitRef} material={hitMat} userData={{ interactiveId: 'laptop' }}>
         <boxGeometry args={[15, 10, 15]} />
       </mesh>
+      <mesh ref={bookshelfHitRef} material={hitMat} userData={{ interactiveId: 'bookshelf' }} position={[221.68, 46.921, -165.96]}>
+        <boxGeometry args={[12, 80, 25]} />
+      </mesh>
 
       {/* Hover backlights at Blender empty positions */}
-      {(['basketball', 'camera', 'laptop'] as InteractiveId[]).map((id) => (
+      {(['basketball', 'camera', 'laptop', 'bookshelf'] as BacklightId[]).map((id) => (
         <pointLight
           key={id}
           ref={getLightRef(id)}
