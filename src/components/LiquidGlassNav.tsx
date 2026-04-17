@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type JSX } from 'react'
 
 const LINKS = [
   { label: 'GitHub', url: 'https://github.com/klamontscott', icon: 'github' as const },
@@ -203,16 +203,16 @@ export default function LiquidGlassNav() {
             }}
             aria-label="Contact links"
           >
-            <span
+            <img
+              src="/photos/profile.jpg"
+              alt="Keith Scott"
               style={{
-                fontSize: 15,
-                fontWeight: 600,
-                color: 'rgba(255,255,255,0.9)',
-                letterSpacing: '-0.02em',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: '68% 25%',
               }}
-            >
-              KS
-            </span>
+            />
           </button>
 
         </div>
