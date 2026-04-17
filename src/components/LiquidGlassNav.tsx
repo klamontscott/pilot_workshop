@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type JSX } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const SOCIAL_LINKS = [
   {
