@@ -224,7 +224,7 @@ function ShelfLights() {
 
 // ── Left wall fill (toggleable with pendant, hidden off-camera) ──
 
-const FILL_INTENSITY = 200
+const FILL_INTENSITY = 230 // bumped 15% to compensate for removed shelf lights
 
 function LeftWallFill() {
   const fillRef = useRef<THREE.SpotLight>(null)
@@ -345,7 +345,6 @@ export default function Scene() {
         <AmbientFill />
         <PendantLantern />
         <MonitorLights />
-        <ShelfLights />
         <LeftWallFill />
         <WallSconceLight />
         <CameraSetup />
