@@ -317,9 +317,14 @@ function WallSconceLight() {
 // ── Main Scene ──────────────────────────────────────────────────
 
 export default function Scene() {
+  const showBasketballGame = useStore((state) => state.showBasketballGame)
+  const showPhotoGallery = useStore((state) => state.showPhotoGallery)
+  const paused = showBasketballGame || showPhotoGallery
+
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
       <Canvas
+        frameloop={paused ? 'never' : 'always'}
         camera={{
           position: [90, 44, -125],
           fov: 58,
