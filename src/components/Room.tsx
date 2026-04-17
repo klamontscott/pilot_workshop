@@ -7,10 +7,10 @@ import * as THREE from 'three'
 const LERP_ALPHA = 0.22
 const HOVER_LERP = 0.45 // ~0.1s to 95% at 60fps — near-instant on/off
 const BACKLIGHT_HOVER: Record<string, number> = {
-  basketball: 1500,
-  camera: 2500,
+  basketball: 400,
+  camera: 400,
   laptop: 1000,
-  bookshelf: 1500,
+  bookshelf: 400,
 }
 
 type InteractiveId = 'pendant' | 'camera' | 'basketball' | 'laptop' | 'bookshelf'
