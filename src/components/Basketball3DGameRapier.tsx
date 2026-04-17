@@ -881,7 +881,7 @@ function Balls({ ballRefs, ballStates, selectedBall, onBallClick, onScore }: Bal
       {BALL.spawns.map((pos, i) => (
         <RigidBody
           key={i}
-          ref={(el) => {
+          ref={(el: RapierRigidBody | null) => {
             ballRefs.current[i] = el
           }}
           colliders="ball"
@@ -891,7 +891,7 @@ function Balls({ ballRefs, ballStates, selectedBall, onBallClick, onScore }: Bal
           linearDamping={0.15}
           angularDamping={0.3}
           ccd
-          onContactForce={(e) => handleContactForce(i, e.totalForceMagnitude)}
+          onContactForce={(e: { totalForceMagnitude: number }) => handleContactForce(i, e.totalForceMagnitude)}
         >
           <mesh
             castShadow
@@ -975,7 +975,7 @@ function Net({ swishImpact }: { swishImpact: SwishImpact }) {
 
   // Per-shot resolved parameters
   const shotParams = useRef({
-    profile: SWISH_PROFILES[0],
+    profile: SWISH_PROFILES[0] as (typeof SWISH_PROFILES)[number],
     impactX: 0,
     impactZ: 0,
     intensity: 1,
@@ -1518,7 +1518,7 @@ export default function Basketball3DGameRapier() {
   const selectedBall = useRef<number>(-1)
   const holdStart = useRef<number | null>(null)
 
-  const [holdDuration, setHoldDuration] = useState(0)
+  const [_holdDuration, setHoldDuration] = useState(0)
   const [chargePower, setChargePower] = useState(0)
   const [lastShot, setLastShot] = useState<'PERFECT' | 'MADE' | 'MISS' | null>(null)
   const [hasBallSelected, setHasBallSelected] = useState(false)
@@ -1533,7 +1533,7 @@ export default function Basketball3DGameRapier() {
 
   // Aim oscillator
   const aimRef = useRef(0)
-  const [aimDisplay, setAimDisplay] = useState(0)
+  const [_aimDisplay, setAimDisplay] = useState(0)
   const timeLeftRef = useRef(30)
 
   // High scores
@@ -1665,8 +1665,6 @@ export default function Basketball3DGameRapier() {
   useEffect(() => {
     let raf: number
     const tick = () => {
-      const now = performance.now() / 1000
-
       // Aim disabled — power-only mechanic
       aimRef.current = 0
 

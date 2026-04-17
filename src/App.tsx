@@ -2,7 +2,7 @@ import Scene from './components/Scene'
 import PhotoGallery from './components/PhotoGallery'
 import Basketball3DGameRapier from './components/Basketball3DGameRapier'
 import LiquidGlassNav from './components/LiquidGlassNav'
-import { Suspense, Component, ReactNode } from 'react'
+import { Suspense, Component, type ReactNode } from 'react'
 import './index.css'
 
 class ErrorBoundary extends Component<

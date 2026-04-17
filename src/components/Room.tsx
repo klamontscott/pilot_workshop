@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useStore } from '../lib/store'
@@ -10,7 +10,7 @@ const BACKLIGHT_HOVER: Record<string, number> = {
   basketball: 400,
   camera: 400,
   laptop: 1000,
-  bookshelf: 400,
+  bookshelf: 256,
 }
 
 type InteractiveId = 'pendant' | 'camera' | 'basketball' | 'laptop' | 'bookshelf'
@@ -31,7 +31,7 @@ const BACKLIGHT_DISTANCE: Record<BacklightId, number> = {
   basketball: 30,
   camera: 30,
   laptop: 90,
-  bookshelf: 30,
+  bookshelf: 19,
 }
 
 // Mechanical light switch click (noise burst + low-pass filter)
@@ -72,6 +72,62 @@ const hitMat = new THREE.MeshBasicMaterial({
   side: THREE.DoubleSide,
 })
 
+// Curved monitor screen — crops image to fit without stretching
+const SCREEN_W = 33.93
+const SCREEN_H = 12.4
+const CURVE_RADIUS = 80 // larger = subtler curve
+const IMG_ASPECT = 3456 / 2168 // source image aspect ratio
+const SCREEN_ASPECT = SCREEN_W / SCREEN_H
+
+function MonitorScreen({ texture }: { texture: THREE.Texture | null }) {
+  const geo = useMemo(() => {
+    const g = new THREE.PlaneGeometry(SCREEN_W, SCREEN_H, 32, 1)
+    const pos = g.attributes.position
+    // Bend vertices along X to create horizontal curve
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const angle = x / CURVE_RADIUS
+      pos.setX(i, Math.sin(angle) * CURVE_RADIUS)
+      pos.setZ(i, Math.cos(angle) * CURVE_RADIUS - CURVE_RADIUS)
+    }
+    pos.needsUpdate = true
+
+    // Crop UVs to maintain image aspect ratio — cover fill, flip vertically
+    const uv = g.attributes.uv
+    // Flip U (horizontal flip since plane is rotated)
+    for (let i = 0; i < uv.count; i++) {
+      uv.setX(i, 1 - uv.getX(i))
+    }
+    if (SCREEN_ASPECT > IMG_ASPECT) {
+      // Screen is wider than image — fit width, crop top/bottom
+      const vRange = IMG_ASPECT / SCREEN_ASPECT
+      const vOffset = (1 - vRange) / 2
+      for (let i = 0; i < uv.count; i++) {
+        uv.setY(i, vOffset + uv.getY(i) * vRange)
+      }
+    } else {
+      // Screen is taller than image — fit height, crop left/right
+      const uRange = SCREEN_ASPECT / IMG_ASPECT
+      const uOffset = (1 - uRange) / 2
+      for (let i = 0; i < uv.count; i++) {
+        uv.setX(i, uOffset + uv.getX(i) * uRange)
+      }
+    }
+    uv.needsUpdate = true
+
+    g.computeVertexNormals()
+    return g
+  }, [])
+
+  if (!texture) return null
+
+  return (
+    <mesh geometry={geo} position={[218, 47.555, -109.585]} rotation={[0, Math.PI / 2, 0]}>
+      <meshBasicMaterial map={texture} side={THREE.DoubleSide} toneMapped={false} />
+    </mesh>
+  )
+}
+
 export default function Room() {
   const toggleLight = useStore((state) => state.toggleLight)
   const lightOn = useStore((state) => state.lightOn)
@@ -82,6 +138,7 @@ export default function Room() {
   const { scene } = useGLTF('/models/workspace.glb')
   const { camera, gl } = useThree()
   const pendantMatRef = useRef<THREE.MeshStandardMaterial | null>(null)
+
 
   const basketballLightRef = useRef<THREE.PointLight>(null)
   const cameraLightRef = useRef<THREE.PointLight>(null)
@@ -106,6 +163,21 @@ export default function Room() {
   const fpsFrames = useRef(0)
   const fpsTime = useRef(performance.now())
   const statsLogged = useRef(false)
+
+  // Load monitor screen texture once
+  const [screenTexture, setScreenTexture] = useState<THREE.Texture | null>(null)
+  useEffect(() => {
+    const loader = new THREE.TextureLoader()
+    loader.load('/photos/monitor-screen.png', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace
+      tex.flipY = true
+      tex.minFilter = THREE.LinearFilter
+      tex.magFilter = THREE.LinearFilter
+      tex.generateMipmaps = false
+      tex.anisotropy = 16
+      setScreenTexture(tex)
+    })
+  }, [])
 
   // Setup: shadows, emissives, position hit volumes
   useEffect(() => {
@@ -134,19 +206,29 @@ export default function Room() {
           meshMat.emissiveIntensity = 0.5
         }
 
-        // Fix speaker bottom — target Color_D03 material specifically
-        if (lname.includes('ds_bo')) {
-          const rawMats = Array.isArray((child as THREE.Mesh).material)
-            ? (child as THREE.Mesh).material as THREE.MeshStandardMaterial[]
-            : [(child as THREE.Mesh).material as THREE.MeshStandardMaterial]
-          for (const m of rawMats) {
-            if (m.name === 'Color_D03') {
-              m.color.set('#1e1e1e')
-              m.roughness = 0.85
-              m.metalness = 0.0
-              m.needsUpdate = true
-            }
+
+
+        // Fake AO on bookshelf — darken vertices deeper inside to show depth
+        if (meshMat?.name === 'dark_wood' && !meshMat.userData._depthAO) {
+          const mesh = child as THREE.Mesh
+          const geo = mesh.geometry
+          geo.computeBoundingBox()
+          const bb = geo.boundingBox!
+          const depth = bb.max.z - bb.min.z // front-to-back range
+          const pos = geo.attributes.position
+          const colors = new Float32Array(pos.count * 3)
+          for (let i = 0; i < pos.count; i++) {
+            // 1.0 at front face, darkens toward the back
+            const t = (pos.getZ(i) - bb.min.z) / (depth || 1)
+            const shade = 0.55 + t * 0.45 // back=0.55, front=1.0
+            colors[i * 3] = shade
+            colors[i * 3 + 1] = shade
+            colors[i * 3 + 2] = shade
           }
+          geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+          meshMat.vertexColors = true
+          meshMat.userData._depthAO = true
+          meshMat.needsUpdate = true
         }
 
         if (lname.includes('noguchi')) {
@@ -333,7 +415,7 @@ export default function Room() {
       }
       else if (id === 'camera') setShowPhotoGallery(true)
       else if (id === 'basketball') setShowBasketballGame(true)
-      else if (id === 'laptop') window.open('https://www.keithscottii.com', '_blank')
+      else if (id === 'laptop') window.open('https://work.keithscottii.com', '_blank')
       else if (id === 'bookshelf') window.open('https://www.goodreads.com/review/list/71910989-keith-scott-ii?shelf=favorites', '_blank')
     }
 
@@ -410,6 +492,9 @@ export default function Room() {
       <mesh ref={bookshelfHitRef} material={hitMat} userData={{ interactiveId: 'bookshelf' }} position={[217.99, 46.921, -165.96]}>
         <boxGeometry args={[12, 80, 25]} />
       </mesh>
+
+      {/* Curved monitor screen overlay */}
+      <MonitorScreen texture={screenTexture} />
 
       {/* Hover backlights at Blender empty positions */}
       {(['basketball', 'camera', 'laptop', 'bookshelf'] as BacklightId[]).map((id) => (

@@ -22,8 +22,8 @@ const TOP_INTENSITY = 350 // soft glow on ceiling above fixture
 // Ambient intensities by lamp state
 const HEMI_ON = 0.5
 const HEMI_OFF = 0.3
-const AMBIENT_ON = 0.25
-const AMBIENT_OFF = 0.15
+const AMBIENT_ON = 1.35
+const AMBIENT_OFF = 0.4
 const LERP_ALPHA = 0.22 // ~0.2s to 95% at 60fps
 
 // ── Utility components ──────────────────────────────────────────
@@ -51,7 +51,7 @@ function RendererSetup() {
     gl.shadowMap.enabled = true
     gl.shadowMap.type = THREE.PCFSoftShadowMap
     gl.toneMapping = THREE.ACESFilmicToneMapping
-    gl.toneMappingExposure = 1.0
+    gl.toneMappingExposure = 2.0
   }, [gl])
   return null
 }
@@ -194,6 +194,57 @@ function MonitorLights() {
   )
 }
 
+// ── Bookshelf accent lights (toggleable with pendant) ────────────
+
+const SHELF_INTENSITY = 150
+
+function ShelfLights() {
+  const topRef = useRef<THREE.PointLight>(null)
+  const midRef = useRef<THREE.PointLight>(null)
+  const lightOn = useStore((state) => state.lightOn)
+  const target = lightOn ? SHELF_INTENSITY : 0
+
+  useEffect(() => {
+    if (topRef.current) topRef.current.intensity = lightOn ? SHELF_INTENSITY : 0
+    if (midRef.current) midRef.current.intensity = lightOn ? SHELF_INTENSITY : 0
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useFrame(() => {
+    if (topRef.current) {
+      topRef.current.intensity = THREE.MathUtils.lerp(
+        topRef.current.intensity, target, LERP_ALPHA,
+      )
+    }
+    if (midRef.current) {
+      midRef.current.intensity = THREE.MathUtils.lerp(
+        midRef.current.intensity, target, LERP_ALPHA,
+      )
+    }
+  })
+
+  return (
+    <>
+      {/* Upper shelf area */}
+      <pointLight
+        ref={topRef}
+        position={[218, 65, -166]}
+        color="#ffe8d0"
+        distance={40}
+        decay={2}
+      />
+      {/* Lower shelf area */}
+      <pointLight
+        ref={midRef}
+        position={[218, 35, -166]}
+        color="#ffe8d0"
+        distance={40}
+        decay={2}
+      />
+    </>
+  )
+}
+
 // ── Left wall fill (toggleable with pendant, hidden off-camera) ──
 
 const FILL_INTENSITY = 230 // bumped 15% to compensate for removed shelf lights
@@ -317,6 +368,7 @@ export default function Scene() {
         <AmbientFill />
         <PendantLantern />
         <MonitorLights />
+        <ShelfLights />
         <LeftWallFill />
         <WallSconceLight />
         <CameraSetup />
