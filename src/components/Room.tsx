@@ -1,11 +1,11 @@
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useStore } from '../lib/store'
 import * as THREE from 'three'
 
 const LERP_ALPHA = 0.22
-const HOVER_LERP = 0.45 // ~0.1s to 95% at 60fps — near-instant on/off
+const HOVER_LERP = 0.27 // ~150ms ease-out at 60fps
 const BACKLIGHT_HOVER: Record<string, number> = {
   basketball: 400,
   camera: 400,
@@ -72,61 +72,6 @@ const hitMat = new THREE.MeshBasicMaterial({
   side: THREE.DoubleSide,
 })
 
-// Curved monitor screen — crops image to fit without stretching
-const SCREEN_W = 33.93
-const SCREEN_H = 12.4
-const CURVE_RADIUS = 80 // larger = subtler curve
-const IMG_ASPECT = 3456 / 2168 // source image aspect ratio
-const SCREEN_ASPECT = SCREEN_W / SCREEN_H
-
-function MonitorScreen({ texture }: { texture: THREE.Texture | null }) {
-  const geo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(SCREEN_W, SCREEN_H, 32, 1)
-    const pos = g.attributes.position
-    // Bend vertices along X to create horizontal curve
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i)
-      const angle = x / CURVE_RADIUS
-      pos.setX(i, Math.sin(angle) * CURVE_RADIUS)
-      pos.setZ(i, Math.cos(angle) * CURVE_RADIUS - CURVE_RADIUS)
-    }
-    pos.needsUpdate = true
-
-    // Crop UVs to maintain image aspect ratio — cover fill, flip vertically
-    const uv = g.attributes.uv
-    // Flip U (horizontal flip since plane is rotated)
-    for (let i = 0; i < uv.count; i++) {
-      uv.setX(i, 1 - uv.getX(i))
-    }
-    if (SCREEN_ASPECT > IMG_ASPECT) {
-      // Screen is wider than image — fit width, crop top/bottom
-      const vRange = IMG_ASPECT / SCREEN_ASPECT
-      const vOffset = (1 - vRange) / 2
-      for (let i = 0; i < uv.count; i++) {
-        uv.setY(i, vOffset + uv.getY(i) * vRange)
-      }
-    } else {
-      // Screen is taller than image — fit height, crop left/right
-      const uRange = SCREEN_ASPECT / IMG_ASPECT
-      const uOffset = (1 - uRange) / 2
-      for (let i = 0; i < uv.count; i++) {
-        uv.setX(i, uOffset + uv.getX(i) * uRange)
-      }
-    }
-    uv.needsUpdate = true
-
-    g.computeVertexNormals()
-    return g
-  }, [])
-
-  if (!texture) return null
-
-  return (
-    <mesh geometry={geo} position={[218, 47.555, -109.585]} rotation={[0, Math.PI / 2, 0]}>
-      <meshBasicMaterial map={texture} side={THREE.DoubleSide} toneMapped={false} />
-    </mesh>
-  )
-}
 
 export default function Room() {
   const toggleLight = useStore((state) => state.toggleLight)
@@ -159,25 +104,7 @@ export default function Room() {
   const raycaster = useRef(new THREE.Raycaster())
   const mouse = useRef(new THREE.Vector2())
 
-  // FPS counter
-  const fpsFrames = useRef(0)
-  const fpsTime = useRef(performance.now())
   const statsLogged = useRef(false)
-
-  // Load monitor screen texture once
-  const [screenTexture, setScreenTexture] = useState<THREE.Texture | null>(null)
-  useEffect(() => {
-    const loader = new THREE.TextureLoader()
-    loader.load('/photos/monitor-screen.png', (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace
-      tex.flipY = true
-      tex.minFilter = THREE.LinearFilter
-      tex.magFilter = THREE.LinearFilter
-      tex.generateMipmaps = false
-      tex.anisotropy = 16
-      setScreenTexture(tex)
-    })
-  }, [])
 
   // Setup: shadows, emissives, position hit volumes
   useEffect(() => {
@@ -235,7 +162,7 @@ export default function Room() {
           const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial
           if (mat && mat.emissive) {
             mat.emissive.set('#fff0e0')
-            mat.emissiveIntensity = lightOn ? 0.35 : 0
+            mat.emissiveIntensity = useStore.getState().lightOn ? 0.35 : 0
             pendantMatRef.current = mat
           }
           if (!pendantMesh) pendantMesh = child
@@ -308,7 +235,8 @@ export default function Room() {
     positionHitVolume(cameraMesh, cameraHitRef)
     positionHitVolume(pendantMesh, pendantHitRef)
     positionHitVolume(laptopMesh, laptopHitRef)
-  }, [scene, lightOn])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene])
 
   // Opaque back panel behind bookshelf to block hover glow bleed
   useEffect(() => {
@@ -371,11 +299,9 @@ export default function Room() {
       if (id === 'pendant' && !useStore.getState().lightOn) id = null
 
       if (id && id !== currentHover.current) {
-        // Instant off for previous hover
+        // Ease-out for previous hover (useFrame lerp handles fade)
         if (currentHover.current && currentHover.current !== 'pendant') {
           backlightTargets.current[currentHover.current] = 0
-          const prevRef = getLightRef(currentHover.current)
-          if (prevRef.current) prevRef.current.intensity = 0
         }
         if (currentHover.current === 'pendant') setHoveredObject(null)
         currentHover.current = id
@@ -383,16 +309,17 @@ export default function Room() {
           setHoveredObject('pendant')
         } else {
           backlightTargets.current[id] = BACKLIGHT_HOVER[id]
+          // Instant-on: set intensity immediately, no lerp delay
+          const newRef = getLightRef(id)
+          if (newRef.current) newRef.current.intensity = BACKLIGHT_HOVER[id]
         }
         canvas.style.cursor = 'pointer'
       } else if (!id && currentHover.current) {
-        // Instant off on mouseleave
+        // Ease-out on mouseleave (~150ms via useFrame lerp)
         if (currentHover.current === 'pendant') {
           setHoveredObject(null)
         } else {
           backlightTargets.current[currentHover.current] = 0
-          const ref = getLightRef(currentHover.current)
-          if (ref.current) ref.current.intensity = 0
         }
         currentHover.current = null
         canvas.style.cursor = 'default'
@@ -406,11 +333,15 @@ export default function Room() {
         playClickSound()
         const wasOn = useStore.getState().lightOn
         toggleLight()
-        // Kill pendant hover instantly when toggling off
+        // Instant emissive response on toggle
         if (wasOn) {
+          // Turning off — kill hover, emissive fades via useFrame
           setHoveredObject(null)
           currentHover.current = null
           canvas.style.cursor = 'default'
+        } else if (pendantMatRef.current) {
+          // Turning on — snap emissive on immediately
+          pendantMatRef.current.emissiveIntensity = 0.35
         }
       }
       else if (id === 'camera') setShowPhotoGallery(true)
@@ -429,15 +360,6 @@ export default function Room() {
   }, [gl, hitTest, toggleLight, setShowPhotoGallery, setShowBasketballGame, setHoveredObject])
 
   useFrame(() => {
-    // FPS counter — logs every 60 frames
-    fpsFrames.current++
-    const now = performance.now()
-    if (now - fpsTime.current >= 1000) {
-      console.log(`[FPS] ${fpsFrames.current}`)
-      fpsFrames.current = 0
-      fpsTime.current = now
-    }
-
     // Pendant lamp on/off emissive
     if (pendantMatRef.current) {
       const base = lightOn ? 0.35 : 0
@@ -492,9 +414,6 @@ export default function Room() {
       <mesh ref={bookshelfHitRef} material={hitMat} userData={{ interactiveId: 'bookshelf' }} position={[217.99, 46.921, -165.96]}>
         <boxGeometry args={[12, 80, 25]} />
       </mesh>
-
-      {/* Curved monitor screen overlay */}
-      <MonitorScreen texture={screenTexture} />
 
       {/* Hover backlights at Blender empty positions */}
       {(['basketball', 'camera', 'laptop', 'bookshelf'] as BacklightId[]).map((id) => (
