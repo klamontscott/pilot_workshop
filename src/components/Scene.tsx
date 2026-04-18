@@ -214,7 +214,6 @@ const SHELF_INTENSITY = 160
 // Blender coords → Three.js Y-up: x→x, y→-z, z→y
 // Slightly inward (~2 units) and below (~1.5 units) each corner
 // [position, target] — lights angle inward toward shelf center and outward toward front edge
-const SHELF_CENTER_Z = -176.1
 const SHELF_LIGHTS: { pos: [number, number, number]; side: 'right' | 'left' }[] = [
   // Bottom shelf
   { pos: [230.789, 24.5, -162.1], side: 'right' },
