@@ -72,6 +72,20 @@ const hitMat = new THREE.MeshBasicMaterial({
   side: THREE.DoubleSide,
 })
 
+// 3-step toon gradient map — hard cel-shaded bands, no interpolation
+const toonGradient = (() => {
+  const data = new Uint8Array([
+    0x33, 0x33, 0x33, 255,  // shadow: #333333
+    0x99, 0x99, 0x99, 255,  // midtone: #999999
+    0xFF, 0xFF, 0xFF, 255,  // highlight: #ffffff
+  ])
+  const tex = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat)
+  tex.minFilter = THREE.NearestFilter
+  tex.magFilter = THREE.NearestFilter
+  tex.needsUpdate = true
+  return tex
+})()
+
 
 export default function Room() {
   const toggleLight = useStore((state) => state.toggleLight)
@@ -80,10 +94,13 @@ export default function Room() {
   const setShowBasketballGame = useStore((state) => state.setShowBasketballGame)
   const setHoveredObject = useStore((state) => state.setHoveredObject)
 
+  const renderStyle = useStore((state) => state.renderStyle)
+
   const { scene } = useGLTF('/models/workspace.glb')
   const { camera, gl } = useThree()
-  const pendantMatRef = useRef<THREE.MeshStandardMaterial | null>(null)
-
+  const pendantMatRef = useRef<(THREE.MeshStandardMaterial | THREE.MeshToonMaterial) | null>(null)
+  const originalMaterials = useRef(new Map<THREE.Mesh, THREE.Material | THREE.Material[]>())
+  const originalPendantMat = useRef<THREE.MeshStandardMaterial | null>(null)
 
   const basketballLightRef = useRef<THREE.PointLight>(null)
   const cameraLightRef = useRef<THREE.PointLight>(null)
@@ -264,6 +281,102 @@ export default function Room() {
       mat.dispose()
     }
   }, [scene])
+
+  // Toon / realistic material swap
+  useEffect(() => {
+    if (renderStyle === 'cartoon') {
+      // Save original pendant material before traversal
+      if (pendantMatRef.current instanceof THREE.MeshStandardMaterial) {
+        originalPendantMat.current = pendantMatRef.current
+      }
+
+      scene.traverse((child) => {
+        if (!(child as THREE.Mesh).isMesh) return
+        const mesh = child as THREE.Mesh
+
+        if (!originalMaterials.current.has(mesh)) {
+          originalMaterials.current.set(mesh, mesh.material)
+        }
+
+        const meshName = mesh.name.toLowerCase()
+
+        const toToon = (m: THREE.Material): THREE.Material => {
+          if (!(m instanceof THREE.MeshStandardMaterial) && !(m instanceof THREE.MeshPhysicalMaterial)) {
+            return m
+          }
+          const matName = (m.name || '').toLowerCase()
+          let color = m.color.clone()
+          let useMap: THREE.Texture | null = m.map // keep map by default
+          let flat = false
+
+          // ── Known material overrides (flat color, no map) ──
+          if (matName === 'dark_wood') {
+            color.set('#5c3a2a'); useMap = null; flat = true
+          }
+
+          // ── Known mesh overrides ──
+          if (!flat) {
+            if (meshName.includes('noguchi')) {
+              color.set('#f5e6d0'); useMap = null; flat = true
+            } else if (meshName.includes('bola_spalding') || meshName.includes('nbaa')) {
+              color.set('#e08830'); useMap = null; flat = true
+            }
+          }
+
+          // ── Default: KEEP diffuse map for per-object color identity ──
+          // MeshToonMaterial + map + gradientMap = textured with cel-shading bands
+          // No roughness/metalness/normal = flat cartoon shading over real colors
+          if (!flat) {
+            const hsl = { h: 0, s: 0, l: 0 }
+            color.getHSL(hsl)
+            if (hsl.s > 0.05) {
+              color.setHSL(hsl.h, Math.min(hsl.s * 1.3, 1), hsl.l)
+            }
+          }
+
+          const toon = new THREE.MeshToonMaterial({
+            color,
+            map: useMap,
+            gradientMap: toonGradient,
+            emissive: m.emissive?.clone(),
+            emissiveIntensity: m.emissiveIntensity,
+            emissiveMap: m.emissiveMap,
+            side: m.side,
+            transparent: m.transparent,
+            opacity: m.opacity,
+            vertexColors: m.vertexColors,
+          })
+          // Keep pendant ref in sync
+          if (originalPendantMat.current && m === originalPendantMat.current) {
+            pendantMatRef.current = toon
+          }
+          return toon
+        }
+
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map(toToon)
+        } else {
+          mesh.material = toToon(mesh.material)
+        }
+      })
+    } else if (originalMaterials.current.size > 0) {
+      // Dispose toon materials
+      originalMaterials.current.forEach((_, mesh) => {
+        const current = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+        current.forEach((m) => { if (m instanceof THREE.MeshToonMaterial) m.dispose() })
+      })
+      // Restore originals
+      originalMaterials.current.forEach((mat, mesh) => {
+        mesh.material = mat
+      })
+      originalMaterials.current.clear()
+      // Restore pendant ref
+      if (originalPendantMat.current) {
+        pendantMatRef.current = originalPendantMat.current
+        originalPendantMat.current = null
+      }
+    }
+  }, [renderStyle, scene])
 
   // Custom raycasting against ONLY the hit volumes
   const hitTest = useCallback((event: PointerEvent): InteractiveId | null => {

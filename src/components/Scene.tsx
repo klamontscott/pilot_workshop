@@ -47,12 +47,20 @@ function CameraSetup() {
 
 function RendererSetup() {
   const { gl } = useThree()
+  const renderStyle = useStore((state) => state.renderStyle)
+
   useEffect(() => {
-    gl.shadowMap.enabled = true
     gl.shadowMap.type = THREE.PCFSoftShadowMap
     gl.toneMapping = THREE.ACESFilmicToneMapping
     gl.toneMappingExposure = 2.0
   }, [gl])
+
+  // Disable shadow maps in cartoon mode for flatter lighting
+  useEffect(() => {
+    gl.shadowMap.enabled = renderStyle !== 'cartoon'
+    gl.shadowMap.needsUpdate = true
+  }, [gl, renderStyle])
+
   return null
 }
 
@@ -62,10 +70,15 @@ function AmbientFill() {
   const hemiRef = useRef<THREE.HemisphereLight>(null)
   const ambientRef = useRef<THREE.AmbientLight>(null)
   const lightOn = useStore((state) => state.lightOn)
+  const renderStyle = useStore((state) => state.renderStyle)
+  const isCartoon = renderStyle === 'cartoon'
 
   // Initialize to correct color state on mount (no flash)
   const initSky = lightOn ? WARM_SKY : COOL_SKY
   const initGround = lightOn ? WARM_GROUND : COOL_GROUND
+
+  // Cartoon mode: boost ambient for flatter, more uniform lighting
+  const cartoonBoost = isCartoon ? 1.6 : 1.0
 
   useFrame(() => {
     const sky = lightOn ? WARM_SKY : COOL_SKY
@@ -75,13 +88,13 @@ function AmbientFill() {
       hemiRef.current.color.lerp(sky, LERP_ALPHA)
       hemiRef.current.groundColor.lerp(ground, LERP_ALPHA)
       hemiRef.current.intensity = THREE.MathUtils.lerp(
-        hemiRef.current.intensity, lightOn ? HEMI_ON : HEMI_OFF, LERP_ALPHA,
+        hemiRef.current.intensity, (lightOn ? HEMI_ON : HEMI_OFF) * cartoonBoost, LERP_ALPHA,
       )
     }
     if (ambientRef.current) {
       ambientRef.current.color.lerp(sky, LERP_ALPHA)
       ambientRef.current.intensity = THREE.MathUtils.lerp(
-        ambientRef.current.intensity, lightOn ? AMBIENT_ON : AMBIENT_OFF, LERP_ALPHA,
+        ambientRef.current.intensity, (lightOn ? AMBIENT_ON : AMBIENT_OFF) * cartoonBoost, LERP_ALPHA,
       )
     }
   })
@@ -194,53 +207,70 @@ function MonitorLights() {
   )
 }
 
-// ── Bookshelf accent lights (toggleable with pendant) ────────────
+// ── Bookshelf accent lights (always on, per-shelf corner pairs) ───
 
-const SHELF_INTENSITY = 150
+const SHELF_INTENSITY = 160
 
-function ShelfLights() {
-  const topRef = useRef<THREE.PointLight>(null)
-  const midRef = useRef<THREE.PointLight>(null)
-  const lightOn = useStore((state) => state.lightOn)
-  const target = lightOn ? SHELF_INTENSITY : 0
+// Blender coords → Three.js Y-up: x→x, y→-z, z→y
+// Slightly inward (~2 units) and below (~1.5 units) each corner
+// [position, target] — lights angle inward toward shelf center and outward toward front edge
+const SHELF_CENTER_Z = -176.1
+const SHELF_LIGHTS: { pos: [number, number, number]; side: 'right' | 'left' }[] = [
+  // Bottom shelf
+  { pos: [230.789, 24.5, -162.1], side: 'right' },
+  { pos: [230.789, 24.5, -190.1], side: 'left' },
+  // Shelf 2
+  { pos: [230.789, 44.8, -162.1], side: 'right' },
+  { pos: [230.789, 44.8, -190.1], side: 'left' },
+  // Shelf 3
+  { pos: [230.789, 67.1, -162.1], side: 'right' },
+  { pos: [230.789, 67.1, -190.1], side: 'left' },
+  // Shelf 4 (top)
+  { pos: [230.789, 88.2, -162.1], side: 'right' },
+  { pos: [230.789, 88.2, -190.1], side: 'left' },
+]
+
+function ShelfSpot({ position, side }: { position: [number, number, number]; side: 'right' | 'left' }) {
+  const light = useRef<THREE.SpotLight>(null)
+  const target = useRef<THREE.Object3D>(null)
+
+  // Inward toward center Z, outward toward front of bookcase (-X)
+  const inwardZ = side === 'right' ? -8 : 8
+  const targetPos: [number, number, number] = [
+    position[0] - 8,          // outward toward front edge
+    position[1] - 20,         // down
+    position[2] + inwardZ,    // inward toward each other
+  ]
 
   useEffect(() => {
-    if (topRef.current) topRef.current.intensity = lightOn ? SHELF_INTENSITY : 0
-    if (midRef.current) midRef.current.intensity = lightOn ? SHELF_INTENSITY : 0
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (light.current && target.current) {
+      light.current.target = target.current
+    }
   }, [])
-
-  useFrame(() => {
-    if (topRef.current) {
-      topRef.current.intensity = THREE.MathUtils.lerp(
-        topRef.current.intensity, target, LERP_ALPHA,
-      )
-    }
-    if (midRef.current) {
-      midRef.current.intensity = THREE.MathUtils.lerp(
-        midRef.current.intensity, target, LERP_ALPHA,
-      )
-    }
-  })
 
   return (
     <>
-      {/* Upper shelf area */}
-      <pointLight
-        ref={topRef}
-        position={[218, 65, -166]}
-        color="#ffe8d0"
-        distance={40}
-        decay={2}
+      <spotLight
+        ref={light}
+        position={position}
+        color="#ffeedd"
+        intensity={SHELF_INTENSITY}
+        distance={30}
+        decay={1}
+        angle={Math.PI / 4}
+        penumbra={0.8}
       />
-      {/* Lower shelf area */}
-      <pointLight
-        ref={midRef}
-        position={[218, 35, -166]}
-        color="#ffe8d0"
-        distance={40}
-        decay={2}
-      />
+      <object3D ref={target} position={targetPos} />
+    </>
+  )
+}
+
+function ShelfLights() {
+  return (
+    <>
+      {SHELF_LIGHTS.map((l, i) => (
+        <ShelfSpot key={i} position={l.pos} side={l.side} />
+      ))}
     </>
   )
 }
@@ -342,7 +372,18 @@ function WallSconceLight() {
 export default function Scene() {
   const showBasketballGame = useStore((state) => state.showBasketballGame)
   const showPhotoGallery = useStore((state) => state.showPhotoGallery)
+  // const toggleRenderStyle = useStore((state) => state.toggleRenderStyle)
   const paused = showBasketballGame || showPhotoGallery
+
+  // Toon mode disabled for production — uncomment to re-enable
+  // useEffect(() => {
+  //   const handler = (e: KeyboardEvent) => {
+  //     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+  //     if (e.key === 't' || e.key === 'T') toggleRenderStyle()
+  //   }
+  //   window.addEventListener('keydown', handler)
+  //   return () => window.removeEventListener('keydown', handler)
+  // }, [toggleRenderStyle])
 
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
