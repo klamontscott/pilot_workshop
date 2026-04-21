@@ -5,12 +5,12 @@ import { useStore } from '../lib/store'
 import * as THREE from 'three'
 
 const LERP_ALPHA = 0.22
-const HOVER_LERP = 0.27 // ~150ms ease-out at 60fps
+const HOVER_LERP = 0.4 // ~80ms ease-out at 60fps
 const BACKLIGHT_HOVER: Record<string, number> = {
-  basketball: 400,
-  camera: 400,
-  laptop: 1000,
-  bookshelf: 256,
+  basketball: 560,
+  camera: 560,
+  laptop: 1400,
+  bookshelf: 360,
 }
 
 type InteractiveId = 'pendant' | 'camera' | 'basketball' | 'laptop' | 'bookshelf'
