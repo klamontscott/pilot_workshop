@@ -11,8 +11,7 @@ export function HeroIntro() {
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
       <h1 className="font-sans text-[36px] sm:text-[48px] lg:text-[56px] font-bold leading-[1.15] tracking-tight text-foreground max-w-[680px]">
-        Hi, I&apos;m Keith, a Bay Area designer working where design meets
-        engineering.
+        Hi, I&apos;m Keith, welcome to the virtual playground. Take a look around.
       </h1>
 
       <motion.div

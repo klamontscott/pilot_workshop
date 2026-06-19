@@ -103,7 +103,13 @@ export function ExperimentsList() {
             return (
               <motion.div key={exp.id} variants={item}>
                 <button
-                  onClick={() => setActiveExperiment(exp)}
+                  onClick={() => {
+                    if (exp.fullUrl) {
+                      window.open(exp.fullUrl, "_blank");
+                    } else {
+                      setActiveExperiment(exp);
+                    }
+                  }}
                   className="group block w-full text-left cursor-pointer"
                 >
                   {/* Preview thumbnail */}
