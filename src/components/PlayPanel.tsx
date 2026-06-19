@@ -23,7 +23,6 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      {/* Subtle top line accent */}
       <motion.div
         className="absolute top-0 left-0 right-0 h-px bg-[#4499ff]"
         initial={{ scaleX: 0 }}
@@ -32,7 +31,6 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         style={{ originX: 0 }}
       />
 
-      {/* Title */}
       <div className="flex flex-col items-center gap-6">
         <motion.p
           className="font-mono text-[11px] uppercase tracking-[0.3em] text-[#4499ff]"
@@ -68,7 +66,6 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
           Tap a ball. Charge your shot. Hit the green zone.
         </motion.p>
 
-        {/* Loading dots */}
         <motion.div
           className="flex gap-1.5 mt-8"
           initial={{ opacity: 0 }}
@@ -99,12 +96,10 @@ export function PlayPanel() {
   const [showSplash, setShowSplash] = useState(false);
   const [loadGame, setLoadGame] = useState(false);
 
-  // When play activates, show splash and start loading the game after a short delay
   useEffect(() => {
     if (isPlaying) {
       setShowSplash(true);
       setLoadGame(false);
-      // Give the slide animation time to finish, then start loading the game
       const timer = setTimeout(() => setLoadGame(true), 600);
       return () => clearTimeout(timer);
     } else {
@@ -122,20 +117,18 @@ export function PlayPanel() {
       {isPlaying && (
         <motion.div
           className="fixed left-0 right-0 bottom-0 z-40 overflow-hidden"
-          style={{ top: 49 }}
+          style={{ top: 81 }}
           initial={{ x: "-100%" }}
           animate={{ x: 0 }}
           exit={{ x: "-100%" }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          {/* Game loads behind the splash */}
           {loadGame && (
             <div className="absolute inset-0">
               <Basketball3DGame onClose={() => setPlaying(false)} />
             </div>
           )}
 
-          {/* Splash overlay fades away after ~4s */}
           <AnimatePresence>
             {showSplash && (
               <SplashScreen onComplete={handleSplashComplete} />

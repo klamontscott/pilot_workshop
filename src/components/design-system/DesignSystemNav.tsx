@@ -44,7 +44,7 @@ export function DesignSystemNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:block w-56 shrink-0 border-r border-border px-6 py-4 sticky top-12 h-[calc(100vh-3rem)] overflow-y-auto">
+    <aside className="hidden md:block w-56 shrink-0 border-r border-border px-8 py-6 sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto">
       <Link
         href="/design-system"
         className="font-sans text-[15px] font-bold text-foreground block mb-6"
@@ -55,7 +55,7 @@ export function DesignSystemNav() {
       <nav className="flex flex-col gap-6">
         {sections.map((section) => (
           <div key={section.label}>
-            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted block mb-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-foreground font-medium block mb-2">
               {section.label}
             </span>
             <ul className="flex flex-col gap-0.5">

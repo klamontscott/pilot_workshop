@@ -6,7 +6,7 @@ export default function DesignSystemLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen pt-20">
       <DesignSystemNav />
       <main className="flex-1 min-w-0 px-8 sm:px-16 lg:px-24 py-12 max-w-4xl">
         {children}

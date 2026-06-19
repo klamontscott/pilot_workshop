@@ -13,6 +13,7 @@ export const experiments: ExperimentConfig[] = [
     component: lazy(() =>
       import("./ShotArcs").then((m) => ({ default: m.ShotArcs }))
     ),
+    fullUrl: "http://localhost:5173",
   },
   {
     id: "typewriter",

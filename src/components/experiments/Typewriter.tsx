@@ -1,84 +1,85 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const words = [
-  "Design is how it works.",
-  "Clarity over decoration.",
-  "Every pixel is a decision.",
-  "Systems, not pages.",
-  "Prototype in code.",
-  "Ship and iterate.",
+  "chaos.",
+  "disarray.",
+  "confusing.",
+  "overwhelming.",
+  "fragmented.",
+  "inconsistent.",
+  "scattered.",
+  "broken.",
 ];
+
+const START_DELAY = 1500;
 
 export function Typewriter() {
   const [displayed, setDisplayed] = useState("");
-  const [wordIndex, setWordIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const cursorRef = useRef<HTMLSpanElement>(null);
-
-  const tick = useCallback(() => {
-    const current = words[wordIndex];
-
-    if (!isDeleting) {
-      if (charIndex < current.length) {
-        setDisplayed(current.slice(0, charIndex + 1));
-        setCharIndex((c) => c + 1);
-        return 40 + Math.random() * 60;
-      } else {
-        return 2000;
-      }
-    } else {
-      if (charIndex > 0) {
-        setDisplayed(current.slice(0, charIndex - 1));
-        setCharIndex((c) => c - 1);
-        return 25;
-      } else {
-        setIsDeleting(false);
-        setWordIndex((w) => (w + 1) % words.length);
-        return 400;
-      }
-    }
-  }, [wordIndex, charIndex, isDeleting]);
+  const [cursorVisible, setCursorVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let wordIndex = 0;
+    let charIndex = 0;
+    let deleting = false;
     let timeout: ReturnType<typeof setTimeout>;
 
-    const step = () => {
-      const delay = tick();
-
-      if (!isDeleting && charIndex === words[wordIndex].length) {
-        timeout = setTimeout(() => {
-          setIsDeleting(true);
-          step();
-        }, delay);
+    function tick() {
+      const word = words[wordIndex];
+      if (!deleting) {
+        charIndex++;
+        setDisplayed(word.slice(0, charIndex));
+        if (charIndex === word.length) {
+          timeout = setTimeout(() => {
+            deleting = true;
+            tick();
+          }, 1800);
+          return;
+        }
+        timeout = setTimeout(tick, 80 + Math.random() * 40);
       } else {
-        timeout = setTimeout(step, delay);
+        charIndex--;
+        setDisplayed(word.slice(0, charIndex));
+        if (charIndex <= 0) {
+          deleting = false;
+          wordIndex = (wordIndex + 1) % words.length;
+          timeout = setTimeout(tick, 400);
+          return;
+        }
+        timeout = setTimeout(tick, 40 + Math.random() * 20);
       }
-    };
+    }
 
-    step();
+    timeout = setTimeout(tick, START_DELAY);
     return () => clearTimeout(timeout);
-  }, [tick, isDeleting, charIndex, wordIndex]);
+  }, []);
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      setCursorVisible(true);
+      const interval = setInterval(() => {
+        setCursorVisible((v) => !v);
+      }, 530);
+      return () => clearInterval(interval);
+    }, START_DELAY);
+    return () => clearTimeout(delay);
+  }, []);
 
   return (
-    <div className="flex items-center justify-center w-full h-full bg-background px-6">
+    <div
+      ref={containerRef}
+      className="flex items-center justify-center w-full h-full bg-background px-6"
+    >
       <p className="font-mono text-[14px] sm:text-[16px] text-foreground leading-relaxed">
-        {displayed}
+        <span className="text-muted">Onboarding is </span>
+        <span className="font-bold">{displayed || "\u200B"}</span>
         <span
-          ref={cursorRef}
-          className="inline-block w-[2px] h-[1.1em] bg-foreground ml-0.5 align-text-bottom animate-[blink_1s_step-end_infinite]"
+          className="inline-block w-[2px] h-[1.1em] bg-foreground ml-0.5 align-text-bottom transition-opacity duration-100"
+          style={{ opacity: cursorVisible ? 1 : 0 }}
         />
       </p>
-
-      <style jsx>{`
-        @keyframes blink {
-          50% {
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   );
 }
