@@ -459,7 +459,15 @@ export default function Room() {
       }
       else if (id === 'camera') setShowPhotoGallery(true)
       else if (id === 'basketball') setShowBasketballGame(true)
-      else if (id === 'laptop') window.open('https://work.keithscottii.com', '_blank')
+      else if (id === 'laptop') {
+        const params = new URLSearchParams(window.location.search)
+        const redirect = params.get('redirect')
+        if (redirect && window.parent !== window) {
+          window.parent.location.href = redirect
+        } else {
+          window.open('https://www.keithscottii.com', '_blank')
+        }
+      }
       else if (id === 'bookshelf') window.open('https://www.goodreads.com/review/list/71910989-keith-scott-ii?shelf=favorites', '_blank')
     }
 
