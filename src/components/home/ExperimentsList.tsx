@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { experiments } from "@/components/experiments";
 import type { ExperimentConfig } from "@/types/experiment";
@@ -85,6 +86,7 @@ function Lightbox({
 }
 
 export function ExperimentsList() {
+  const router = useRouter();
   const [activeExperiment, setActiveExperiment] =
     useState<ExperimentConfig | null>(null);
 
@@ -104,7 +106,9 @@ export function ExperimentsList() {
               <motion.div key={exp.id} variants={item}>
                 <button
                   onClick={() => {
-                    if (exp.fullUrl) {
+                    if (exp.localUrl) {
+                      router.push(exp.localUrl);
+                    } else if (exp.fullUrl) {
                       window.open(exp.fullUrl, "_blank");
                     } else {
                       setActiveExperiment(exp);

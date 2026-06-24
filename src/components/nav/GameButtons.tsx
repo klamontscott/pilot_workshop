@@ -15,24 +15,25 @@ export function GameButtons() {
         {/* Basketball — opens basketball game */}
         <button
           onClick={togglePlay}
-          className="w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
+          className="w-9 h-9 flex items-center justify-center overflow-hidden hover:scale-110 transition-transform cursor-pointer"
           aria-label="Play basketball game"
         >
-          <span className="text-[32px] leading-none">🏀</span>
+          <span className="text-[36px] leading-none">🏀</span>
         </button>
 
         {/* Mario — opens Mario game */}
         <button
           onClick={() => setShowMario(true)}
-          className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden hover:scale-110 transition-transform cursor-pointer bg-[#6B93D6]"
+          className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden hover:scale-110 transition-transform cursor-pointer bg-[#6B93D6]"
           aria-label="Play Mario game"
         >
           <Image
             src="/mario-stand.png"
             alt="Mario"
-            width={38}
-            height={38}
+            width={24}
+            height={24}
             className="object-contain"
+            style={{ width: "auto", height: "24px" }}
           />
         </button>
       </div>

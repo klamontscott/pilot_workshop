@@ -11,9 +11,9 @@ export const experiments: ExperimentConfig[] = [
     position: { x: 200, y: 200 },
     size: { width: 480, height: 360 },
     component: lazy(() =>
-      import("./ShotArcs").then((m) => ({ default: m.ShotArcs }))
+      import("./RoomPreview").then((m) => ({ default: m.RoomPreview }))
     ),
-    fullUrl: "https://portfolio-zeta-virid-62.vercel.app/",
+    localUrl: "/",
   },
   {
     id: "typewriter",
@@ -26,5 +26,21 @@ export const experiments: ExperimentConfig[] = [
     component: lazy(() =>
       import("./Typewriter").then((m) => ({ default: m.Typewriter }))
     ),
+  },
+  {
+    id: "goodreads",
+    title: "Bookshelf",
+    description: "A curated collection of my favorite reads on Goodreads",
+    date: "2026-06",
+    tags: ["reading", "curation"],
+    position: { x: 500, y: 500 },
+    size: { width: 400, height: 300 },
+    component: lazy(() =>
+      import("./GoodreadsPreview").then((m) => ({
+        default: m.GoodreadsPreview,
+      }))
+    ),
+    fullUrl:
+      "https://www.goodreads.com/review/list/71910989-keith-scott-ii?shelf=favorites",
   },
 ];

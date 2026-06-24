@@ -10,4 +10,5 @@ export interface ExperimentConfig {
   size: { width: number; height: number };
   component: ComponentType;
   fullUrl?: string;
+  localUrl?: string;
 }

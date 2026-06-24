@@ -31,11 +31,27 @@ export function SiteNav() {
         {!isDesignSystem && <GameButtons />}
 
         <Link
-          href={isDesignSystem ? "/" : "/design-system"}
+          href="/"
           className="font-mono text-[17px] uppercase tracking-wider text-foreground leading-none group"
         >
           <span className="relative">
-            {isDesignSystem ? "Home" : "Design System"}
+            Room
+            <motion.span
+              className="absolute left-0 -bottom-1 h-px bg-foreground origin-left"
+              initial={{ scaleX: 0 }}
+              whileHover={{ scaleX: 1 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              style={{ width: "100%" }}
+            />
+          </span>
+        </Link>
+
+        <Link
+          href={isDesignSystem ? "/experiments" : "/design-system"}
+          className="font-mono text-[17px] uppercase tracking-wider text-foreground leading-none group"
+        >
+          <span className="relative">
+            {isDesignSystem ? "Experiments" : "Design System"}
             <motion.span
               className="absolute left-0 -bottom-1 h-px bg-foreground origin-left"
               initial={{ scaleX: 0 }}
