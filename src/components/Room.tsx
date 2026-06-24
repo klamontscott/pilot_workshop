@@ -463,7 +463,7 @@ export default function Room() {
         const params = new URLSearchParams(window.location.search)
         const redirect = params.get('redirect')
         if (redirect && window.parent !== window) {
-          window.parent.location.href = redirect
+          window.parent.postMessage({ type: 'navigate', path: redirect }, '*')
         } else {
           window.open('https://www.keithscottii.com', '_blank')
         }
