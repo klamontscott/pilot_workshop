@@ -39,19 +39,17 @@ const SOCIAL_LINKS = [
   },
 ]
 
-const NAV_ITEMS = ['Home', 'Work']
+const NAV_ITEMS = ['Play', 'Work']
 
 export default function LiquidGlassNav() {
-  const [activeNav, setActiveNav] = useState('Home')
+  const [activeNav, setActiveNav] = useState('Play')
   const [profileOpen, setProfileOpen] = useState(false)
-  const [showWorkPrompt, setShowWorkPrompt] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setProfileOpen(false)
-        setShowWorkPrompt(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
@@ -194,77 +192,6 @@ export default function LiquidGlassNav() {
         </div>
       )}
 
-      {/* Work prompt */}
-      {showWorkPrompt && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 12px)',
-            left: 0,
-            right: 0,
-            background: 'rgba(40, 38, 36, 0.85)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            borderRadius: 16,
-            padding: 20,
-            color: '#e0ddd8',
-            textAlign: 'center',
-            animation: 'slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-          }}
-        >
-          <p style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500, color: '#f0eeea' }}>
-            Do you want to see my case studies?
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => {
-                setShowWorkPrompt(false)
-                setActiveNav('Home')
-              }}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: 10,
-                border: 'none',
-                background: 'rgba(255, 255, 255, 0.06)',
-                color: '#ccc',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
-            >
-              No
-            </button>
-            <button
-              onClick={() => {
-                window.open('https://work.keithscottii.com', '_blank')
-                setShowWorkPrompt(false)
-                setActiveNav('Home')
-              }}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: 10,
-                border: 'none',
-                background: 'rgba(255, 255, 255, 0.18)',
-                color: '#f0eeea',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)')}
-            >
-              Yes
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Nav bar */}
       <div
         style={{
@@ -285,7 +212,7 @@ export default function LiquidGlassNav() {
         {/* Profile Picture */}
         <div style={{ position: 'relative' }}>
           <button
-            onClick={() => { setProfileOpen(!profileOpen); setShowWorkPrompt(false) }}
+            onClick={() => setProfileOpen(!profileOpen)}
             style={{
               width: 44,
               height: 44,
@@ -352,10 +279,15 @@ export default function LiquidGlassNav() {
                 key={item}
                 onClick={() => {
                   if (item === 'Work') {
-                    setShowWorkPrompt(true)
+                    const params = new URLSearchParams(window.location.search)
+                    const redirect = params.get('redirect')
+                    if (redirect && window.parent !== window) {
+                      window.parent.postMessage({ type: 'navigate', path: redirect }, '*')
+                    } else {
+                      window.open('https://www.keithscottii.com', '_blank')
+                    }
                   } else {
                     setActiveNav(item)
-                    setShowWorkPrompt(false)
                   }
                 }}
                 style={{
