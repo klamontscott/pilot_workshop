@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { PlayProvider } from "@/lib/play-context";
 import { SiteNav } from "@/components/nav/SiteNav";
 import { PlayPanel } from "@/components/PlayPanel";
+import { WorkPlayToggle } from "@/components/nav/WorkPlayToggle";
 
 export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,6 +26,7 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
     <PlayProvider>
       {!isRoom && <SiteNav />}
       {!isRoom && <PlayPanel />}
+      {!isRoom && <WorkPlayToggle />}
       {children}
     </PlayProvider>
   );
