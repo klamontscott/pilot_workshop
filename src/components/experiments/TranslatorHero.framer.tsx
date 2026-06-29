@@ -516,7 +516,8 @@ export default function TranslatorHero({
 
   // ── Audio playback ─────────────────────────────────────
 
-  const playAudio = useCallback(async () => {
+  const playAudio = useCallback(async (word?: WordEntry) => {
+    const w = word || selectedWord;
     const myId = ++playIdRef.current;
 
     if (sourceRef.current) {
@@ -533,7 +534,7 @@ export default function TranslatorHero({
 
     const lang = direction === "en-es" ? "es" : "en";
     const urlBase = audioBaseUrl || "";
-    const url = `${urlBase}/audio/translator/${selectedWord.key}_${lang}.mp3`;
+    const url = `${urlBase}/audio/translator/${w.key}_${lang}.mp3`;
 
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext();
@@ -762,11 +763,7 @@ export default function TranslatorHero({
                 key={w.key}
                 onClick={() => {
                   setSelectedWord(w);
-                  setShowTranslation(false);
-                }}
-                onDoubleClick={() => {
-                  setSelectedWord(w);
-                  playAudio();
+                  playAudio(w);
                 }}
                 style={{
                   padding: "8px 16px",
@@ -802,7 +799,7 @@ export default function TranslatorHero({
             color: textMuted,
             transition: "color 0.4s ease",
           }}>
-            Double-click a word to hear its translation
+            Click a word to hear its translation
           </span>
           <div style={{
             display: "flex",
