@@ -194,7 +194,7 @@ export default function TranslatorHero({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-    camera.position.set(0, -1.4, 6);
+    camera.position.set(0, -0.4, 6);
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
