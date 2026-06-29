@@ -326,7 +326,7 @@ export default function TranslatorHero({
       const bp = breakpointRef.current;
 
       // Breakpoint adjustments
-      const scale = bp === "desktop" ? 1 : bp === "tablet" ? 0.9 : 0.75;
+      const scale = bp === "desktop" ? 0.75 : bp === "tablet" ? 0.65 : 0.55;
       _targetScale.setScalar(scale);
       group.scale.lerp(_targetScale, 0.05);
 
