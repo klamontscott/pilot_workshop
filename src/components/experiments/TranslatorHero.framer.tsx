@@ -103,7 +103,7 @@ export default function TranslatorHero({
   sphereColor1 = "#bd5931",
   sphereColor2 = "#e8a87c",
   particleCount = 10000,
-  audioBaseUrl = "",
+  audioBaseUrl = "https://portfolio-audio-cdn.vercel.app",
   cursorInfluence = 1,
   audioReactivity = 1.5,
   idleRotationSpeed = 0,
