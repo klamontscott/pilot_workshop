@@ -849,8 +849,7 @@ addPropertyControls(TranslatorHero, {
   audioBaseUrl: {
     type: ControlType.String,
     title: "Audio Base URL",
-    defaultValue: "",
-    description: "Your Vercel deployment URL (e.g. https://your-site.vercel.app)",
+    defaultValue: "https://portfolio-audio-cdn.vercel.app",
   },
   cursorInfluence: {
     type: ControlType.Number,
