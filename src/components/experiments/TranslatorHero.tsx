@@ -667,7 +667,7 @@ export default function TranslatorHero({
 
   const panelPad = isMobile ? 16 : isTablet ? 20 : 24;
   const isLongWord = sourceWord.length + targetWord.length > 20;
-  const resultSize = isMobile ? 32 : isTablet ? (isLongWord ? 36 : 40) : (isLongWord ? 42 : 48);
+  const resultSize = isMobile ? 22 : isTablet ? (isLongWord ? 24 : 28) : (isLongWord ? 30 : 36);
   const pillMinH = isMobile ? 44 : 36;
 
   // ── Render ─────────────────────────────────────────────
@@ -725,8 +725,8 @@ export default function TranslatorHero({
         style={{
           position: "absolute",
           top: isMobile ? 24 : 40,
-          left: "55%",
-          right: isMobile ? 24 : 48,
+          left: isMobile ? 16 : 24,
+          right: isMobile ? 16 : 24,
           zIndex: 10,
           opacity: ready ? 1 : 0,
           transition: "opacity 0.5s ease-out 0.2s",
