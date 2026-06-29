@@ -715,71 +715,12 @@ export default function TranslatorHero({
         }}
       />
 
-      {/* Toggle — top center */}
-      <div
-        style={{
-          position: "absolute",
-          top: isMobile ? 96 : 112,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 6,
-          opacity: ready ? 1 : 0,
-          transition: "opacity 0.5s ease-out 0.2s",
-        }}
-      >
-        <span style={{
-          fontSize: 13,
-          fontWeight: 500,
-          fontStyle: "italic",
-          color: textColor,
-          transition: "color 0.4s ease",
-        }}>
-          {isSpanish ? "Espa\u00f1ol" : "English"}
-        </span>
-        <button
-          onClick={() => {
-            setDirection((d) => (d === "en-es" ? "es-en" : "en-es"));
-            setShowTranslation(false);
-          }}
-          style={{
-            position: "relative",
-            width: 52,
-            height: 28,
-            borderRadius: 14,
-            border: "none",
-            background: isSpanish ? "#c4c4c4" : "#fff",
-            cursor: "pointer",
-            outline: "none",
-            transition: "background 0.3s ease",
-          }}
-        >
-          <motion.div
-            animate={{ x: isSpanish ? 26 : 2 }}
-            transition={{ type: "spring", stiffness: 500, damping: 35 }}
-            style={{
-              position: "absolute",
-              top: 2,
-              left: 0,
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              background: isSpanish ? "#fff" : "#000",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-            }}
-          />
-        </button>
-      </div>
-
       {/* Translation result — top right */}
       <div
         ref={resultWrapRef}
         style={{
           position: "absolute",
-          top: isMobile ? 96 : 112,
+          top: isMobile ? 24 : 40,
           left: "55%",
           right: isMobile ? 24 : 48,
           zIndex: 10,
@@ -857,6 +798,57 @@ export default function TranslatorHero({
           transition: "opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s, background 0.4s ease, border-color 0.4s ease",
         }}
       >
+        {/* Toggle */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          marginBottom: 16,
+        }}>
+          <span style={{
+            fontSize: 13,
+            fontWeight: 500,
+            fontStyle: "italic",
+            color: textColor,
+            transition: "color 0.4s ease",
+          }}>
+            {isSpanish ? "Espa\u00f1ol" : "English"}
+          </span>
+          <button
+            onClick={() => {
+              setDirection((d) => (d === "en-es" ? "es-en" : "en-es"));
+              setShowTranslation(false);
+            }}
+            style={{
+              position: "relative",
+              width: 52,
+              height: 28,
+              borderRadius: 14,
+              border: "none",
+              background: isSpanish ? "#c4c4c4" : "#fff",
+              cursor: "pointer",
+              outline: "none",
+              transition: "background 0.3s ease",
+            }}
+          >
+            <motion.div
+              animate={{ x: isSpanish ? 26 : 2 }}
+              transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              style={{
+                position: "absolute",
+                top: 2,
+                left: 0,
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                background: isSpanish ? "#fff" : "#000",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }}
+            />
+          </button>
+        </div>
+
         {/* Pills */}
         <div
           className="th-pills"
