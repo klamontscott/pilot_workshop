@@ -137,10 +137,8 @@ export default function TranslatorHero({
   const BG_EN = "#000000";
   const BG_ES = "#f0f0f0";
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
-  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const syntheticPulseRef = useRef(0);
   const playIdRef = useRef(0);
 
@@ -505,9 +503,6 @@ export default function TranslatorHero({
         audioElRef.current.pause();
         audioElRef.current = null;
       }
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close().catch(() => {});
-      }
     };
   }, []);
 
@@ -524,35 +519,17 @@ export default function TranslatorHero({
     const urlBase = audioBaseUrl || "";
     const url = `${urlBase}/audio/translator/${w.key}_${lang}.mp3`;
 
-    // Create or reuse audio element
-    if (!audioElRef.current) {
-      audioElRef.current = new Audio();
-      audioElRef.current.crossOrigin = "anonymous";
-    }
-    const audio = audioElRef.current;
-    audio.pause();
-    audio.src = url;
-
-    // Lazy-init AudioContext + AnalyserNode (for sphere animation)
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioContext();
-    }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === "suspended") await ctx.resume();
-
-    if (!analyserRef.current) {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      analyser.connect(ctx.destination);
-      analyserRef.current = analyser;
+    // Stop previous audio
+    if (audioElRef.current) {
+      audioElRef.current.pause();
     }
 
-    // Connect audio element to analyser (only once)
-    if (!mediaSourceRef.current) {
-      mediaSourceRef.current = ctx.createMediaElementSource(audio);
-      mediaSourceRef.current.connect(analyserRef.current);
-    }
+    // Simple audio element — no Web Audio API
+    const audio = new Audio(url);
+    audioElRef.current = audio;
+
+    // Trigger sphere animation via synthetic pulse
+    syntheticPulseRef.current = 1;
 
     audio.onended = () => {
       if (playIdRef.current === myId) {
@@ -560,11 +537,15 @@ export default function TranslatorHero({
       }
     };
 
+    audio.onerror = () => {
+      console.error("Audio failed to load:", url);
+      if (playIdRef.current === myId) setIsPlaying(false);
+    };
+
     try {
       await audio.play();
-    } catch {
-      // Playback blocked — use synthetic pulse for sphere animation
-      syntheticPulseRef.current = 1;
+    } catch (e) {
+      console.error("Audio play failed:", e);
       setTimeout(() => {
         if (playIdRef.current === myId) setIsPlaying(false);
       }, 1500);
