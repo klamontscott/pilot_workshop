@@ -137,7 +137,9 @@ export default function TranslatorHero({
   const BG_EN = "#000000";
   const BG_ES = "#f0f0f0";
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const syntheticPulseRef = useRef(0);
   const playIdRef = useRef(0);
@@ -503,6 +505,12 @@ export default function TranslatorHero({
         audioElRef.current.pause();
         audioElRef.current = null;
       }
+      if (sourceNodeRef.current) {
+        try { sourceNodeRef.current.disconnect(); } catch (_) {}
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => {});
+      }
     };
   }, []);
 
@@ -524,12 +532,51 @@ export default function TranslatorHero({
       audioElRef.current.pause();
     }
 
-    // Simple audio element — no Web Audio API
+    // Disconnect previous source node
+    if (sourceNodeRef.current) {
+      try { sourceNodeRef.current.disconnect(); } catch (_) {}
+      sourceNodeRef.current = null;
+    }
+
+    // Lazy-init AudioContext + AnalyserNode (must happen on user gesture)
+    if (!audioCtxRef.current) {
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        analyser.connect(ctx.destination);
+        analyserRef.current = analyser;
+      } catch (e) {
+        console.warn("Web Audio API unavailable:", e);
+      }
+    }
+
+    // Resume context if suspended (autoplay policy)
+    if (audioCtxRef.current?.state === "suspended") {
+      await audioCtxRef.current.resume();
+    }
+
+    // Create audio element with CORS for CDN
     const audio = new Audio(url);
+    audio.crossOrigin = "anonymous";
     audioElRef.current = audio;
 
-    // Trigger sphere animation via synthetic pulse
-    syntheticPulseRef.current = 1;
+    // Connect to Web Audio graph for real frequency analysis
+    if (audioCtxRef.current && analyserRef.current) {
+      try {
+        const source = audioCtxRef.current.createMediaElementSource(audio);
+        source.connect(analyserRef.current);
+        sourceNodeRef.current = source;
+      } catch (e) {
+        console.warn("MediaElementSource failed, using synthetic pulse:", e);
+        syntheticPulseRef.current = 1;
+      }
+    } else {
+      // Fallback if Web Audio init failed
+      syntheticPulseRef.current = 1;
+    }
 
     audio.onended = () => {
       if (playIdRef.current === myId) {
@@ -546,6 +593,7 @@ export default function TranslatorHero({
       await audio.play();
     } catch (e) {
       console.error("Audio play failed:", e);
+      syntheticPulseRef.current = 1;
       setTimeout(() => {
         if (playIdRef.current === myId) setIsPlaying(false);
       }, 1500);
