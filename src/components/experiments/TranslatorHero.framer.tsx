@@ -139,8 +139,8 @@ export default function TranslatorHero({
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const audioCacheRef = useRef(new Map<string, AudioBuffer>());
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const syntheticPulseRef = useRef(0);
   const playIdRef = useRef(0);
 
@@ -501,12 +501,9 @@ export default function TranslatorHero({
 
   useEffect(() => {
     return () => {
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.stop();
-        } catch {
-          /* already stopped */
-        }
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current = null;
       }
       if (audioCtxRef.current) {
         audioCtxRef.current.close().catch(() => {});
@@ -520,15 +517,6 @@ export default function TranslatorHero({
     const w = word || selectedWord;
     const myId = ++playIdRef.current;
 
-    if (sourceRef.current) {
-      try {
-        sourceRef.current.stop();
-      } catch {
-        /* already stopped */
-      }
-      sourceRef.current = null;
-    }
-
     setShowTranslation(true);
     setIsPlaying(true);
 
@@ -536,6 +524,16 @@ export default function TranslatorHero({
     const urlBase = audioBaseUrl || "";
     const url = `${urlBase}/audio/translator/${w.key}_${lang}.mp3`;
 
+    // Create or reuse audio element
+    if (!audioElRef.current) {
+      audioElRef.current = new Audio();
+      audioElRef.current.crossOrigin = "anonymous";
+    }
+    const audio = audioElRef.current;
+    audio.pause();
+    audio.src = url;
+
+    // Lazy-init AudioContext + AnalyserNode (for sphere animation)
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext();
     }
@@ -550,36 +548,27 @@ export default function TranslatorHero({
       analyserRef.current = analyser;
     }
 
-    let buffer = audioCacheRef.current.get(url);
-    if (!buffer) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`${res.status}`);
-        const raw = await res.arrayBuffer();
-        buffer = await ctx.decodeAudioData(raw);
-        audioCacheRef.current.set(url, buffer);
-      } catch {
-        syntheticPulseRef.current = 1;
-        setTimeout(() => {
-          if (playIdRef.current === myId) setIsPlaying(false);
-        }, 1500);
-        return;
-      }
+    // Connect audio element to analyser (only once)
+    if (!mediaSourceRef.current) {
+      mediaSourceRef.current = ctx.createMediaElementSource(audio);
+      mediaSourceRef.current.connect(analyserRef.current);
     }
 
-    if (playIdRef.current !== myId) return;
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(analyserRef.current!);
-    source.onended = () => {
+    audio.onended = () => {
       if (playIdRef.current === myId) {
         setIsPlaying(false);
-        sourceRef.current = null;
       }
     };
-    sourceRef.current = source;
-    source.start();
+
+    try {
+      await audio.play();
+    } catch {
+      // Playback blocked — use synthetic pulse for sphere animation
+      syntheticPulseRef.current = 1;
+      setTimeout(() => {
+        if (playIdRef.current === myId) setIsPlaying(false);
+      }, 1500);
+    }
   }, [selectedWord, direction, audioBaseUrl]);
 
   // ── Derived ────────────────────────────────────────────
