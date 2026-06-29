@@ -117,6 +117,8 @@ export default function TranslatorHero({
   const [isPlaying, setIsPlaying] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
   const [ready, setReady] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const playbackRateRef = useRef(1);
 
   const propsRef = useRef({ cursorInfluence, audioReactivity, idleRotationSpeed });
   propsRef.current = { cursorInfluence, audioReactivity, idleRotationSpeed };
@@ -543,7 +545,7 @@ export default function TranslatorHero({
       sourceNodeRef.current = null;
     }
 
-    // Lazy-init AudioContext + AnalyserNode (must happen on user gesture)
+    // Lazy-init AudioContext + AnalyserNode
     if (!audioCtxRef.current) {
       try {
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -558,17 +560,16 @@ export default function TranslatorHero({
       }
     }
 
-    // Resume context if suspended (autoplay policy)
     if (audioCtxRef.current?.state === "suspended") {
       await audioCtxRef.current.resume();
     }
 
-    // Create audio element with CORS for CDN
     const audio = new Audio(url);
     audio.crossOrigin = "anonymous";
+    audio.playbackRate = playbackRateRef.current;
     audioElRef.current = audio;
 
-    // Connect to Web Audio graph for real frequency analysis
+    // Connect to Web Audio graph for frequency analysis
     if (audioCtxRef.current && analyserRef.current) {
       try {
         const source = audioCtxRef.current.createMediaElementSource(audio);
@@ -579,7 +580,6 @@ export default function TranslatorHero({
         syntheticPulseRef.current = 1;
       }
     } else {
-      // Fallback if Web Audio init failed
       syntheticPulseRef.current = 1;
     }
 
@@ -652,6 +652,10 @@ export default function TranslatorHero({
       <style>{`
         .th-pills::-webkit-scrollbar{display:none}
         .th-pills{scrollbar-width:none;-ms-overflow-style:none}
+        .th-speed{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;outline:none;cursor:pointer;background:${isSpanish ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)"}}
+        .th-speed::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:${sphereColor1};cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+        .th-speed::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:${sphereColor1};cursor:pointer;border:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+        .th-speed::-moz-range-track{height:4px;border-radius:2px;background:${isSpanish ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)"}}
       `}</style>
 
       {/* Canvas */}
@@ -682,7 +686,7 @@ export default function TranslatorHero({
         }}
       />
 
-      {/* Translation result — top right */}
+      {/* Translation result */}
       <div
         ref={resultWrapRef}
         style={{
@@ -748,7 +752,7 @@ export default function TranslatorHero({
         </AnimatePresence>
       </div>
 
-      {/* Bottom panel — pills + play */}
+      {/* Bottom panel */}
       <div
         style={{
           position: "absolute",
@@ -786,9 +790,9 @@ export default function TranslatorHero({
                 style={{
                   padding: "8px 16px",
                   borderRadius: 9999,
-                  border: `1px solid ${active ? sphereColor1 : isSpanish ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.18)"}`,
-                  background: active ? sphereColor1 : isSpanish ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
-                  color: active ? "#fff" : isSpanish ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.6)",
+                  border: `1px solid ${active ? sphereColor1 : isSpanish ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.18)"}`,
+                  background: active ? sphereColor1 : isSpanish ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.08)",
+                  color: active ? "#fff" : isSpanish ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.6)",
                   fontSize: 13,
                   fontWeight: 500,
                   cursor: "pointer",
@@ -806,6 +810,144 @@ export default function TranslatorHero({
           })}
           <div style={{ flexShrink: 0, width: 1 }} aria-hidden="true" />
         </div>
+
+        {/* Speed scrubber — appears after first play */}
+        <AnimatePresence>
+          {showTranslation && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              style={{ overflow: "hidden", marginBottom: 16 }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}>
+                <motion.button
+                  onClick={() => playAudio()}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.93 }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: sphereColor1,
+                    color: "#fff",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    outline: "none",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  {isPlaying ? "\u23F8" : "\u25B6"}
+                </motion.button>
+
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="range"
+                    className="th-speed"
+                    min={0.2}
+                    max={1.5}
+                    step={0.01}
+                    value={playbackRate}
+                    onChange={(e) => {
+                      const rate = parseFloat(e.target.value);
+                      setPlaybackRate(rate);
+                      playbackRateRef.current = rate;
+                      if (audioElRef.current) {
+                        audioElRef.current.playbackRate = rate;
+                      }
+                    }}
+                  />
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 4,
+                    padding: "0 2px",
+                  }}>
+                    {[0.25, 0.5, 0.75, 1, 1.25].map((v) => (
+                      <span
+                        key={v}
+                        onClick={() => {
+                          setPlaybackRate(v);
+                          playbackRateRef.current = v;
+                          if (audioElRef.current) {
+                            audioElRef.current.playbackRate = v;
+                          }
+                        }}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: Math.abs(playbackRate - v) < 0.03 ? 700 : 400,
+                          color: Math.abs(playbackRate - v) < 0.03 ? sphereColor1 : textMuted,
+                          cursor: "pointer",
+                          userSelect: "none",
+                          transition: "color 0.2s, font-weight 0.2s",
+                        }}
+                      >
+                        {v === 1 ? "1x" : `${v}x`}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <span style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: textColor,
+                  width: 46,
+                  textAlign: "right",
+                  fontVariantNumeric: "tabular-nums",
+                  flexShrink: 0,
+                  transition: "color 0.4s ease",
+                }}>
+                  {playbackRate.toFixed(2)}x
+                </span>
+
+                <motion.button
+                  onClick={() => {
+                    setPlaybackRate(1);
+                    playbackRateRef.current = 1;
+                    if (audioElRef.current) {
+                      audioElRef.current.playbackRate = 1;
+                    }
+                  }}
+                  whileHover={Math.abs(playbackRate - 1) > 0.03 ? { scale: 1.1 } : {}}
+                  whileTap={Math.abs(playbackRate - 1) > 0.03 ? { scale: 0.93 } : {}}
+                  animate={{ opacity: Math.abs(playbackRate - 1) > 0.03 ? 1 : 0 }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    border: `1px solid ${isSpanish ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.2)"}`,
+                    background: "transparent",
+                    color: textMuted,
+                    fontSize: 12,
+                    cursor: Math.abs(playbackRate - 1) > 0.03 ? "pointer" : "default",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    outline: "none",
+                    pointerEvents: Math.abs(playbackRate - 1) > 0.03 ? "auto" : "none",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                  title="Reset to 1x"
+                >
+                  {"\u21BA"}
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div style={{
           display: "flex",
