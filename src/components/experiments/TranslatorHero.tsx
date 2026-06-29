@@ -798,57 +798,6 @@ export default function TranslatorHero({
           transition: "opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s, background 0.4s ease, border-color 0.4s ease",
         }}
       >
-        {/* Toggle */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          marginBottom: 16,
-        }}>
-          <span style={{
-            fontSize: 13,
-            fontWeight: 500,
-            fontStyle: "italic",
-            color: textColor,
-            transition: "color 0.4s ease",
-          }}>
-            {isSpanish ? "Espa\u00f1ol" : "English"}
-          </span>
-          <button
-            onClick={() => {
-              setDirection((d) => (d === "en-es" ? "es-en" : "en-es"));
-              setShowTranslation(false);
-            }}
-            style={{
-              position: "relative",
-              width: 52,
-              height: 28,
-              borderRadius: 14,
-              border: "none",
-              background: isSpanish ? "#c4c4c4" : "#fff",
-              cursor: "pointer",
-              outline: "none",
-              transition: "background 0.3s ease",
-            }}
-          >
-            <motion.div
-              animate={{ x: isSpanish ? 26 : 2 }}
-              transition={{ type: "spring", stiffness: 500, damping: 35 }}
-              style={{
-                position: "absolute",
-                top: 2,
-                left: 0,
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                background: isSpanish ? "#fff" : "#000",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              }}
-            />
-          </button>
-        </div>
-
         {/* Pills */}
         <div
           className="th-pills"
@@ -898,16 +847,68 @@ export default function TranslatorHero({
           })}
         </div>
 
-        <span style={{
-          display: "block",
-          fontSize: 12,
-          fontStyle: "italic",
-          color: textMuted,
-          transition: "color 0.4s ease",
-          textAlign: "center",
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}>
-          Double-click a word to hear its translation
-        </span>
+          <span style={{
+            fontSize: 12,
+            fontStyle: "italic",
+            color: textMuted,
+            transition: "color 0.4s ease",
+          }}>
+            Double-click a word to hear its translation
+          </span>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <span style={{
+              fontSize: 13,
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: textColor,
+              transition: "color 0.4s ease",
+            }}>
+              {isSpanish ? "Espa\u00f1ol" : "English"}
+            </span>
+            <button
+              onClick={() => {
+                setDirection((d) => (d === "en-es" ? "es-en" : "en-es"));
+                setShowTranslation(false);
+              }}
+              style={{
+                position: "relative",
+                width: 52,
+                height: 28,
+                borderRadius: 14,
+                border: "none",
+                background: isSpanish ? "#c4c4c4" : "#fff",
+                cursor: "pointer",
+                outline: "none",
+                transition: "background 0.3s ease",
+              }}
+            >
+              <motion.div
+                animate={{ x: isSpanish ? 26 : 2 }}
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  left: 0,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: isSpanish ? "#fff" : "#000",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }}
+              />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
