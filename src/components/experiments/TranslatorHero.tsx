@@ -147,7 +147,7 @@ export default function TranslatorHero({
 
   // Background colors per direction
   const BG_EN = "#000000"; // black (English)
-  const BG_ES = "#b0b0b0"; // grey (Spanish)
+  const BG_ES = "#7a7a7a"; // grey (Spanish)
 
   // Audio refs
   const audioCtxRef = useRef<AudioContext | null>(null);

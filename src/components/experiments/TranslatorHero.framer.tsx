@@ -138,7 +138,7 @@ export default function TranslatorHero({
   const occluderMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
   const BG_EN = "#000000";
-  const BG_ES = "#b0b0b0";
+  const BG_ES = "#7a7a7a";
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
