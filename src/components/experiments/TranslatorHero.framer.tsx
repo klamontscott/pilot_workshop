@@ -135,7 +135,7 @@ export default function TranslatorHero({
   const occluderMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
   const BG_EN = "#000000";
-  const BG_ES = "#f0f0f0";
+  const BG_ES = "#d0d0d0";
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -395,9 +395,9 @@ export default function TranslatorHero({
           ((rippleHead - 1 - delay) % RIPPLE_LEN + RIPPLE_LEN) % RIPPLE_LEN;
         const particleAmp = rippleHistory[sampleIdx];
 
-        const audioDisp = particleAmp * ar * 0.45;
+        const audioDisp = particleAmp * ar * 0.9;
 
-        const jitter = particleAmp * ar * 0.12 *
+        const jitter = particleAmp * ar * 0.25 *
           Math.sin(time * 14 + phaseOffsets[i]);
 
         let cursorIndent = 0;
@@ -441,7 +441,7 @@ export default function TranslatorHero({
         curPos[i3 + 1] += vel[i3 + 1];
         curPos[i3 + 2] += vel[i3 + 2];
 
-        sizes[i] = BASE_SIZE + particleAmp * ar * 0.15;
+        sizes[i] = BASE_SIZE + particleAmp * ar * 0.35;
       }
 
       geo.attributes.position.needsUpdate = true;

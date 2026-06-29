@@ -144,7 +144,7 @@ export default function TranslatorHero({
 
   // Background colors per direction
   const BG_EN = "#000000"; // black (English)
-  const BG_ES = "#f0f0f0"; // light grey (Spanish)
+  const BG_ES = "#d0d0d0"; // grey (Spanish)
 
   // Audio refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -434,10 +434,10 @@ export default function TranslatorHero({
         const particleAmp = rippleHistory[sampleIdx];
 
         // Radial displacement from ripple
-        const audioDisp = particleAmp * ar * 0.45;
+        const audioDisp = particleAmp * ar * 0.9;
 
         // Tangential jitter — makes front-face dots visibly vibrate
-        const jitter = particleAmp * ar * 0.12 *
+        const jitter = particleAmp * ar * 0.25 *
           Math.sin(time * 14 + phaseOffsets[i]);
 
         // Cursor indent — poke inward like pressing a balloon
@@ -489,7 +489,7 @@ export default function TranslatorHero({
         curPos[i3 + 2] += vel[i3 + 2];
 
         // Size pulse per particle (ripple-driven)
-        sizes[i] = BASE_SIZE + particleAmp * ar * 0.15;
+        sizes[i] = BASE_SIZE + particleAmp * ar * 0.35;
       }
 
       geo.attributes.position.needsUpdate = true;
