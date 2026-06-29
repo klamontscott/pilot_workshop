@@ -124,6 +124,7 @@ export default function TranslatorHero({
   const mouseRef = useRef({ x: 0, y: 0, active: false });
   const breakpointRef = useRef(breakpoint);
   breakpointRef.current = breakpoint;
+  const containerSizeRef = useRef({ width: 1200, height: 800 });
   const directionRef = useRef(direction);
   directionRef.current = direction;
 
@@ -151,6 +152,8 @@ export default function TranslatorHero({
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
+      const h = entry.contentRect.height;
+      containerSizeRef.current = { width: w, height: h };
       setBreakpoint(w >= 1200 ? "desktop" : w >= 810 ? "tablet" : "mobile");
     });
     ro.observe(el);
@@ -301,7 +304,9 @@ export default function TranslatorHero({
         propsRef.current;
       const bp = breakpointRef.current;
 
-      const scale = bp === "desktop" ? 0.75 : bp === "tablet" ? 0.65 : 0.55;
+      const baseScale = bp === "desktop" ? 0.75 : bp === "tablet" ? 0.65 : 0.55;
+      const heightFactor = Math.min(1, containerSizeRef.current.height / 700);
+      const scale = baseScale * heightFactor;
       _targetScale.setScalar(scale);
       group.scale.lerp(_targetScale, 0.05);
 
@@ -605,7 +610,7 @@ export default function TranslatorHero({
   const isSpanish = direction === "es-en";
   const sourceWord = isSpanish ? selectedWord.es : selectedWord.en;
   const targetWord = isSpanish ? selectedWord.en : selectedWord.es;
-  const activeBg = isSpanish ? "#f0f0f0" : "#000000";
+  const activeBg = isSpanish ? BG_ES : BG_EN;
   const textColor = isSpanish ? "#111111" : "#ffffff";
   const textMuted = isSpanish ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.5)";
 
@@ -625,7 +630,6 @@ export default function TranslatorHero({
       };
 
   const panelPad = isMobile ? 16 : isTablet ? 20 : 24;
-  const panelRadius = isMobile ? 16 : 20;
   const isLongWord = sourceWord.length + targetWord.length > 20;
   const resultSize = isMobile ? 32 : isTablet ? (isLongWord ? 36 : 40) : (isLongWord ? 42 : 48);
   const pillMinH = isMobile ? 44 : 36;
@@ -750,15 +754,10 @@ export default function TranslatorHero({
           position: "absolute",
           ...panelPos,
           padding: panelPad,
-          borderRadius: panelRadius,
-          background: isSpanish ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.06)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          border: isSpanish ? "1px solid rgba(0,0,0,0.08)" : "1px solid rgba(255,255,255,0.1)",
           zIndex: 10,
           opacity: ready ? 1 : 0,
           transform: `${panelPos.transform || ""} translateY(${ready ? 0 : 12}px)`.trim(),
-          transition: "opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s, background 0.4s ease, border-color 0.4s ease",
+          transition: "opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s",
         }}
       >
         {/* Pills */}
@@ -767,9 +766,9 @@ export default function TranslatorHero({
           style={{
             display: "flex",
             gap: 8,
-            overflowX: isMobile || isTablet ? "auto" : "hidden",
+            overflowX: "auto",
             overflowY: "hidden",
-            flexWrap: !isMobile && !isTablet ? "wrap" : "nowrap",
+            flexWrap: "nowrap",
             paddingBottom: 12,
             marginBottom: 16,
           }}
