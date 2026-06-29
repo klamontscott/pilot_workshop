@@ -733,7 +733,7 @@ export default function TranslatorHero({
           position: "absolute",
           top: isMobile ? 24 : 40,
           left: isMobile ? 16 : 24,
-          right: isMobile ? 16 : 24,
+          right: isMobile ? 16 : 120,
           zIndex: 10,
           opacity: ready ? 1 : 0,
           transition: "opacity 0.5s ease-out 0.2s",
