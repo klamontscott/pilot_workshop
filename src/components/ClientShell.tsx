@@ -11,8 +11,6 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isRoom = pathname === "/";
-  const isImmersive = pathname.startsWith("/experiments/translator");
-  const showChrome = !isRoom && !isImmersive;
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
@@ -26,12 +24,10 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PlayProvider>
-      {showChrome && <SiteNav />}
-      {showChrome && <PlayPanel />}
-      {showChrome && <WorkPlayToggle />}
-      <div className={`flex-1 flex flex-col ${showChrome ? "pt-12" : ""}`}>
-        {children}
-      </div>
+      {!isRoom && <SiteNav />}
+      {!isRoom && <PlayPanel />}
+      {!isRoom && <WorkPlayToggle />}
+      {children}
     </PlayProvider>
   );
 }
