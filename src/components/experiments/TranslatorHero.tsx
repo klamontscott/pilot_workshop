@@ -726,14 +726,14 @@ export default function TranslatorHero({
         }}
       />
 
-      {/* Translation result — top right */}
-      <div
+      {/* Translation result — top right (hidden on mobile) */}
+      {!isMobile && <div
         ref={resultWrapRef}
         style={{
           position: "absolute",
-          top: isMobile ? 24 : 40,
-          left: isMobile ? 16 : 24,
-          right: isMobile ? 16 : 120,
+          top: 40,
+          left: 24,
+          right: 120,
           zIndex: 10,
           opacity: ready ? 1 : 0,
           transition: "opacity 0.5s ease-out 0.2s",
@@ -790,10 +790,10 @@ export default function TranslatorHero({
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </div>}
 
-      {/* Bottom panel — pills + play */}
-      <div
+      {/* Bottom panel — pills + play (hidden on mobile) */}
+      {!isMobile && <div
         style={{
           position: "absolute",
           ...panelPos,
@@ -1054,7 +1054,7 @@ export default function TranslatorHero({
             </button>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
