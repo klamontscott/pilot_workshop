@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'framer': path.resolve(__dirname, './src/lib/framer-shim.ts'),
     },
     // Force single instances — prevents duplicate React/R3F contexts
     dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei'],

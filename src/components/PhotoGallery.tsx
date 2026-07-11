@@ -1,5 +1,6 @@
 import { useStore } from '../lib/store'
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type Category = 'all' | 'sports' | 'street' | 'product' | 'events'
 
@@ -298,11 +299,14 @@ export default function PhotoGallery() {
     return () => window.removeEventListener('keydown', handler)
   }, [lightboxPhoto, closeLightbox, navigateLightbox])
 
-  if (!showPhotoGallery) return null
-
   return (
-    <>
-      <div
+    <AnimatePresence>
+      {showPhotoGallery && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
         style={{
           position: 'fixed',
           top: 0,
@@ -317,7 +321,10 @@ export default function PhotoGallery() {
         }}
       >
         {/* Header */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
           style={{
             flexShrink: 0,
             padding: '28px 40px 16px',
@@ -467,10 +474,13 @@ export default function PhotoGallery() {
               Book a Shoot
             </a>
           </div>
-        </div>
+        </motion.div>
 
         {/* Grid */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           style={{
             flex: 1,
             overflow: 'auto',
@@ -559,8 +569,7 @@ export default function PhotoGallery() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </motion.div>
 
       {/* Lightbox */}
       {lightboxPhoto && (
@@ -726,6 +735,8 @@ export default function PhotoGallery() {
         .photo-card .heart-count { opacity: 1; }
         .photo-card:hover .heart-count { opacity: 0; }
       `}</style>
-    </>
+      </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

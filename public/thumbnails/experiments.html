@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Experiments Card — Preview</title>
+<link rel="stylesheet" href="https://fonts.cdnfonts.com/css/switzer">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #FFFFFF;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Switzer', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .card-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: min(80%, calc((100vh - 60px) * 696 / 376));
+    max-width: 900px;
+    min-width: 320px;
+  }
+
+  .card {
+    width: 100%;
+    aspect-ratio: 696 / 376;
+    background: #FAFAFA;
+    border-radius: 0;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+    container-type: inline-size;
+  }
+
+  .card canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .card-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 9.48cqi;
+    font-weight: 600;
+    color: #111;
+    letter-spacing: -0.3px;
+    z-index: 1;
+    user-select: none;
+    display: flex;
+    white-space: nowrap;
+  }
+
+  .card-label .letter {
+    pointer-events: auto;
+    cursor: pointer;
+    display: inline-block;
+    font-family: 'Switzer', sans-serif;
+    text-align: center;
+    vertical-align: top;
+    line-height: 1;
+    transition: color 150ms ease;
+  }
+
+  .i-dot {
+    position: absolute;
+    background: #111;
+    border-radius: 0;
+    pointer-events: none;
+    z-index: 2;
+    transition: none;
+  }
+
+  .label {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111;
+    letter-spacing: -0.3px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card-wrapper">
+  <div class="card" id="card">
+    <canvas id="canvas"></canvas>
+    <span class="card-label" id="cardLabel"></span>
+  </div>
+  <span class="label">Experiments</span>
+</div>
+
+<script>
+const card = document.getElementById('card');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// --- Config ---
+const PARTICLE_COUNT = 350;
+const REPULSION_RADIUS = 140;     // cursor pushes within this radius
+const REPULSION_STRENGTH = 2;     // subtle push
+const SPRING_CONSTANT = 0.005;    // very soft pull back to home
+const FRICTION = 0.965;           // less friction = longer coasting
+const CURSOR_LERP = 0.07;        // how fast the force field follows the cursor
+const PILL_MIN = 1;
+const PILL_MAX = 5.5;
+const PILL_WIDTH_MIN = 0.8;
+const PILL_WIDTH_MAX = 3;
+const HUE_CYCLE_SPEED = 20;
+const REF_W = 696;
+
+// --- State ---
+let hovered = false;
+let hueOffset = 0;
+let time = 0;
+let lastTimestamp = 0;
+let dpr = 1;
+let W = 696;
+let H = 376;
+
+// Cursor (raw input)
+let mouseX = -9999;
+let mouseY = -9999;
+let prevMouseX = 0;
+let prevMouseY = 0;
+let cursorVX = 0;
+let cursorVY = 0;
+let cursorSpeed = 0;
+
+// Lerped cursor (the force field position — trails behind)
+let fieldX = -9999;
+let fieldY = -9999;
+
+// Fade
+let globalAlpha = 0;
+
+// --- Particles ---
+const particles = [];
+
+function initParticles() {
+  particles.length = 0;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const hx = Math.random() * W;
+    const hy = Math.random() * H;
+    particles.push({
+      // Current position
+      x: hx,
+      y: hy,
+      // Home position (where spring pulls back to)
+      homeX: hx,
+      homeY: hy,
+      // Velocity
+      vx: 0,
+      vy: 0,
+      // Pill visuals
+      angle: Math.random() * Math.PI * 2,
+      sizeFactor: 0.3 + Math.random() * 0.7,
+      hueJitter: Math.random() * 50 - 25,
+      // Mass variation
+      mass: 0.7 + Math.random() * 0.6,
+      // Ambient drift — each particle has its own slow orbit
+      driftAngle: Math.random() * Math.PI * 2,
+      driftSpeed: 0.2 + Math.random() * 0.5,  // how fast it orbits
+      driftRadius: 8 + Math.random() * 20,     // how far it wanders from home
+      driftPhase: Math.random() * Math.PI * 2,
+      // Spin
+      spinSpeed: (Math.random() - 0.5) * 0.8,
+    });
+  }
+}
+
+function scale() {
+  return W / REF_W;
+}
+
+function draw(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.033);
+  lastTimestamp = timestamp;
+  time += dt;
+
+  // Hue cycling
+  hueOffset += HUE_CYCLE_SPEED * dt;
+  if (hueOffset > 360) hueOffset -= 360;
+
+  // Fade in/out
+  if (hovered && globalAlpha < 1) {
+    globalAlpha = Math.min(1, globalAlpha + dt * 1.5);
+  } else if (!hovered && globalAlpha > 0) {
+    globalAlpha = Math.max(0, globalAlpha - dt * 2);
+  }
+
+  // Cursor velocity (smoothed)
+  if (hovered) {
+    const rawVX = (mouseX - prevMouseX) / Math.max(dt, 0.001);
+    const rawVY = (mouseY - prevMouseY) / Math.max(dt, 0.001);
+    cursorVX += (rawVX - cursorVX) * 0.12;
+    cursorVY += (rawVY - cursorVY) * 0.12;
+    cursorSpeed = Math.sqrt(cursorVX * cursorVX + cursorVY * cursorVY);
+  } else {
+    cursorVX *= 0.95;
+    cursorVY *= 0.95;
+    cursorSpeed *= 0.95;
+  }
+  prevMouseX = mouseX;
+  prevMouseY = mouseY;
+
+  // Lerp the force field toward the actual cursor
+  if (hovered) {
+    fieldX += (mouseX - fieldX) * CURSOR_LERP;
+    fieldY += (mouseY - fieldY) * CURSOR_LERP;
+  }
+
+  ctx.clearRect(0, 0, W * dpr, H * dpr);
+
+  if (globalAlpha <= 0 && !hovered) {
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  const s = scale();
+  // Repulsion radius scales with card + cursor speed (gentler scaling)
+  const speedBoost = 1 + Math.min(cursorSpeed / 600, 0.8);
+  const repR = REPULSION_RADIUS * s * speedBoost;
+
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+
+    // --- 1. Repulsion from lerped field position ---
+    const dx = p.x - fieldX;
+    const dy = p.y - fieldY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < repR && dist > 0.5) {
+      const force = ((repR - dist) / repR) * REPULSION_STRENGTH * s / p.mass;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      p.vx += nx * force;
+      p.vy += ny * force;
+
+      // Gentle push in cursor's travel direction
+      if (cursorSpeed > 30) {
+        const cvLen = Math.max(cursorSpeed, 1);
+        const dragForce = force * 0.15 * Math.min(cursorSpeed / 500, 1);
+        p.vx += (cursorVX / cvLen) * dragForce;
+        p.vy += (cursorVY / cvLen) * dragForce;
+      }
+    }
+
+    // --- 2. Ambient drift: gentle orbit around home position ---
+    const driftT = time * p.driftSpeed + p.driftPhase;
+    const driftTargetX = p.homeX + Math.cos(driftT) * p.driftRadius * s;
+    const driftTargetY = p.homeY + Math.sin(driftT + p.driftAngle) * p.driftRadius * s;
+
+    // Spring pulls toward drifting target (not static home)
+    p.vx += (driftTargetX - p.x) * SPRING_CONSTANT;
+    p.vy += (driftTargetY - p.y) * SPRING_CONSTANT;
+
+    // --- 3. Apply friction and update ---
+    p.vx *= FRICTION;
+    p.vy *= FRICTION;
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // Slow pill spin for ambient life
+    p.angle += p.spinSpeed * dt;
+
+    // --- Rendering ---
+    const vel = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+    const velNorm = Math.min(vel / (8 * s), 1);
+
+    // Displacement from home
+    const dispX = p.x - p.homeX;
+    const dispY = p.y - p.homeY;
+    const displacement = Math.sqrt(dispX * dispX + dispY * dispY);
+    const dispNorm = Math.min(displacement / (100 * s), 1);
+
+    // Combined intensity: how "active" this particle is
+    const intensity = Math.max(velNorm, dispNorm);
+
+    // Base visibility: particles are always somewhat visible, get bigger/brighter when active
+    const baseSize = 0.25;  // always at least 25% size
+    const sizeT = (baseSize + (1 - baseSize) * intensity) * p.sizeFactor;
+    const pillLength = (PILL_MIN + (PILL_MAX - PILL_MIN) * sizeT) * s;
+    const pillWidth = (PILL_WIDTH_MIN + (PILL_WIDTH_MAX - PILL_WIDTH_MIN) * sizeT) * s;
+
+    // Pill rotation follows velocity when moving fast, otherwise ambient spin
+    if (vel > 3 * s) {
+      const targetAngle = Math.atan2(p.vy, p.vx);
+      let angleDiff = targetAngle - p.angle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      p.angle += angleDiff * 0.1;
+    }
+
+    // Color: rainbow based on angle from field + displacement
+    const angleFromCursor = Math.atan2(dy, dx);
+    const hue = ((hueOffset + angleFromCursor * 180 / Math.PI + p.hueJitter) % 360 + 360) % 360;
+
+    // Always somewhat colorful, more vivid when active
+    const saturation = 30 + intensity * 65;
+    const lightness = 18 + intensity * 37;
+    const alpha = globalAlpha * (0.3 + intensity * 0.7);
+
+    if (alpha < 0.01) continue;
+
+    ctx.save();
+    ctx.translate(p.x * dpr, p.y * dpr);
+    ctx.rotate(p.angle);
+    ctx.beginPath();
+    ctx.roundRect(
+      -pillLength * dpr, -pillWidth * 0.5 * dpr,
+      pillLength * 2 * dpr, pillWidth * dpr,
+      pillWidth * 0.5 * dpr
+    );
+    ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+function resize() {
+  const rect = card.getBoundingClientRect();
+  dpr = window.devicePixelRatio || 1;
+  W = rect.width;
+  H = rect.height;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  // Reinit particles with new dimensions
+  if (particles.length === 0 || Math.abs(particles[0].homeX - W * particles[0].homeX / W) > 1) {
+    initParticles();
+  }
+}
+
+// --- Events ---
+card.addEventListener('mouseenter', (e) => {
+  hovered = true;
+  const rect = card.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
+  prevMouseX = mouseX;
+  prevMouseY = mouseY;
+  fieldX = mouseX;
+  fieldY = mouseY;
+});
+
+card.addEventListener('mouseleave', () => {
+  hovered = false;
+  mouseX = -9999;
+  mouseY = -9999;
+});
+
+card.addEventListener('mousemove', (e) => {
+  const rect = card.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
+});
+
+const labelEl = document.getElementById('cardLabel');
+
+window.addEventListener('resize', () => {
+  resize();
+  initParticles();
+  sizeDot();
+});
+
+// --- Init ---
+resize();
+initParticles();
+requestAnimationFrame(draw);
+
+// --- Font Cycling on Letter Hover ---
+const FONTS = [
+  "'Switzer', sans-serif",
+  "Georgia, serif",
+  "'Courier New', monospace",
+  "Impact, sans-serif",
+  "'Times New Roman', serif",
+  "'Comic Sans MS', cursive",
+  "Futura, sans-serif",
+  "'Trebuchet MS', sans-serif",
+  "Palatino, serif",
+  "'Arial Black', sans-serif",
+];
+
+const CYCLE_INTERVAL = 68; // ms between font changes
+const word = 'Experiments';
+
+// Split into individual letter spans
+const letters = [];
+word.split('').forEach((char) => {
+  const span = document.createElement('span');
+  span.className = 'letter';
+  span.textContent = char;
+  labelEl.appendChild(span);
+  letters.push(span);
+});
+
+// Measure and lock each letter's width in em so it scales with font size
+requestAnimationFrame(() => {
+  const computedSize = parseFloat(getComputedStyle(labelEl).fontSize);
+  letters.forEach((span) => {
+    const rect = span.getBoundingClientRect();
+    span.style.width = ((rect.width + 2) / computedSize).toFixed(4) + 'em';
+    span.style.height = (rect.height / computedSize).toFixed(4) + 'em';
+    span.style.overflow = 'hidden';
+  });
+});
+
+// --- Easter egg: i-dot taps the R ---
+// "Experiments" → E(0) x(1) p(2) e(3) r(4) i(5) m(6) e(7) n(8) t(9) s(10)
+const rSpan = letters[4];  // 'r'
+const iSpan = letters[5];  // 'i' — stays as regular "i"
+
+// Create the floating dot (hidden by default — only visible during animation)
+const iDot = document.createElement('div');
+iDot.className = 'i-dot';
+iDot.style.opacity = '0';
+document.getElementById('card').appendChild(iDot);
+
+const BASE_DOT_SIZE = 7;
+
+function getDotSize() {
+  return BASE_DOT_SIZE * (card.offsetWidth / REF_W);
+}
+
+function sizeDot() {
+  const ds = getDotSize();
+  iDot.style.width = ds + 'px';
+  iDot.style.height = ds + 'px';
+}
+sizeDot();
+
+function getDotHome() {
+  const ds = getDotSize();
+  const iRect = iSpan.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  return {
+    x: iRect.left - cardRect.left + iRect.width / 2 - ds / 2,
+    y: iRect.top - cardRect.top + 2 * (card.offsetWidth / REF_W),
+  };
+}
+
+function getRTarget() {
+  const ds = getDotSize();
+  const rRect = rSpan.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  return {
+    x: rRect.left - cardRect.left + rRect.width / 2 - ds / 2,
+    y: rRect.top - cardRect.top,
+  };
+}
+
+let easterEggActive = false;
+let easterEggCancelled = false;
+let rCycleTimer = null;
+let dotAnimFrame = null;
+
+function animateDot(from, to, duration) {
+  return new Promise((resolve, reject) => {
+    const start = performance.now();
+    function tick(now) {
+      if (easterEggCancelled) { reject('cancelled'); return; }
+      const t = Math.min((now - start) / duration, 1);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      iDot.style.left = (from.x + (to.x - from.x) * ease) + 'px';
+      iDot.style.top = (from.y + (to.y - from.y) * ease) + 'px';
+      if (t < 1) {
+        dotAnimFrame = requestAnimationFrame(tick);
+      } else {
+        resolve();
+      }
+    }
+    dotAnimFrame = requestAnimationFrame(tick);
+  });
+}
+
+function tapBounce() {
+  return new Promise((resolve, reject) => {
+    const current = parseFloat(iDot.style.top);
+    const bounceDown = current + 6;
+    const start = performance.now();
+    const dur = 150;
+    function tick(now) {
+      if (easterEggCancelled) { reject('cancelled'); return; }
+      const t = Math.min((now - start) / dur, 1);
+      const y = t < 0.5
+        ? current + (bounceDown - current) * (t * 2)
+        : bounceDown + (current - bounceDown) * ((t - 0.5) * 2);
+      iDot.style.top = y + 'px';
+      if (t < 1) {
+        dotAnimFrame = requestAnimationFrame(tick);
+      } else {
+        resolve();
+      }
+    }
+    dotAnimFrame = requestAnimationFrame(tick);
+  });
+}
+
+function resetEasterEgg() {
+  // Cancel any in-flight animation
+  easterEggCancelled = true;
+  if (dotAnimFrame) {
+    cancelAnimationFrame(dotAnimFrame);
+    dotAnimFrame = null;
+  }
+  // Stop cycling
+  clearInterval(rCycleTimer);
+  rCycleTimer = null;
+  // Reset R appearance
+  rSpan.style.fontFamily = "'Switzer', sans-serif";
+  rSpan.style.color = '#111';
+  // Hide the floating dot
+  iDot.style.opacity = '0';
+  // Restore the i's dot visibility (remove clip)
+  iSpan.style.clipPath = '';
+  // Clear state
+  easterEggActive = false;
+}
+
+// Add hover behavior
+letters.forEach((span, idx) => {
+  let cycleTimer = null;
+  let fontIndex = 0;
+
+  if (idx === 4) {
+    // R — Easter egg
+    span.addEventListener('mouseenter', async () => {
+      if (easterEggActive) return;
+      easterEggActive = true;
+      easterEggCancelled = false;
+
+      sizeDot();
+      const home = getDotHome();
+      const target = getRTarget();
+
+      // Swap: hide real i-dot via clip, show floating dot in same spot
+      iSpan.style.clipPath = 'inset(32% 0 0 0)';
+      iDot.style.left = home.x + 'px';
+      iDot.style.top = home.y + 'px';
+      iDot.style.opacity = '1';
+
+      try {
+        // Brief pause — feels like something's about to happen
+        await new Promise((resolve, reject) => {
+          const id = setTimeout(() => { if (easterEggCancelled) reject('cancelled'); else resolve(); }, 200);
+          if (easterEggCancelled) { clearTimeout(id); reject('cancelled'); }
+        });
+        if (easterEggCancelled) return;
+
+        // Dot travels to top of R
+        await animateDot(home, target, 400);
+        if (easterEggCancelled) return;
+
+        // Tap!
+        await tapBounce();
+        if (easterEggCancelled) return;
+
+        // Start cycling on R
+        fontIndex = 0;
+        span.style.color = '#E53935';
+        rCycleTimer = setInterval(() => {
+          fontIndex = (fontIndex + 1) % FONTS.length;
+          span.style.fontFamily = FONTS[fontIndex];
+        }, CYCLE_INTERVAL);
+
+        // Dot returns home
+        const targetNow = getRTarget();
+        const homeNow = getDotHome();
+        await animateDot(targetNow, homeNow, 400);
+        if (easterEggCancelled) return;
+
+        // Dot is back — hide it, restore real i-dot
+        iDot.style.opacity = '0';
+        iSpan.style.clipPath = '';
+      } catch (e) {
+        // Animation was cancelled — resetEasterEgg already handled cleanup
+        return;
+      }
+    });
+
+    span.addEventListener('mouseleave', () => {
+      resetEasterEgg();
+    });
+  } else {
+    // All other letters — normal behavior
+    span.addEventListener('mouseenter', () => {
+      fontIndex = 0;
+      span.style.color = '#E53935';
+      cycleTimer = setInterval(() => {
+        fontIndex = (fontIndex + 1) % FONTS.length;
+        span.style.fontFamily = FONTS[fontIndex];
+      }, CYCLE_INTERVAL);
+    });
+
+    span.addEventListener('mouseleave', () => {
+      clearInterval(cycleTimer);
+      cycleTimer = null;
+      span.style.fontFamily = "'Switzer', sans-serif";
+      span.style.color = '#111';
+    });
+  }
+});
+</script>
+
+</body>
+</html>

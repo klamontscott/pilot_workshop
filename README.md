@@ -1,169 +1,158 @@
-# Keith Scott - Interactive 3D Portfolio
+# Keith Scott — Interactive Portfolio
 
-A high-craft 3D portfolio experience built with React Three Fiber, showcasing design work through an interactive workspace environment.
+An interactive 3D portfolio built with React, TypeScript, and Three.js. Features an immersive workspace you can explore, a gallery of 10 interactive experiments, physics-based games, audio-reactive visuals, and polished micro-interactions.
+
+## Features
+
+### 3D Workspace
+
+- Navigable Three.js room with interactive objects — monitor, bookshelf, camera, basketball hoop, lamp
+- 7-layer lighting system with day/night toggle
+- Custom Blender model loaded via GLTF
+- Post-processing: bloom, ambient occlusion, tone mapping
+- Hover glow and click interactions with event tracking
+
+### Experiments Gallery
+
+- Folder-based desktop UI with drag-and-drop
+- 10 interactive experiments with info modals and live previews
+- Responsive breakpoints for desktop, tablet, and mobile
+- Animated ticker and route overlay
+
+### Built-in Experiments
+
+| # | Experiment | What it does |
+|---|---|---|
+| 001 | **3D Portfolio Room** | Immersive Three.js workspace with navigable space and interactive displays |
+| 002 | **Photo Gallery** | Masonry layout with category filtering, lightbox, and cloud-powered likes |
+| 003 | **Hoop Dreams** | 3D basketball arcade with Rapier physics, streak multipliers, and global leaderboard |
+| 004 | **Space Runner** | Canvas-based 2D platformer with sprite animation and collision detection |
+| 005 | **Bookcase** | Interactive 3D bookshelf with pull-out book details using CSS 3D transforms |
+| 006 | **Hablamos** | Bilingual translation hero with audio-reactive particle sphere and GLSL shaders |
+| 007 | **Animated Grid Banner** | Canvas-drawn tracers racing across rows with color-coded motion trails |
+| 008 | **Typewriter** | Looping type/delete animation with realistic cadence and blinking cursor |
+| 009 | **Dynamic Carousel** | Spring-animated before/after carousel for the Jump Start onboarding case study |
+| 010 | **PGR Logo Animation** | Step-by-step After Effects tutorial with 7-slide video carousel |
 
 ## Tech Stack
 
-- **Vite** - Fast build tool and dev server
-- **React** + **TypeScript** - UI framework
-- **React Three Fiber** + **Drei** - 3D rendering
-- **Three.js** - WebGL engine
-- **Zustand** - State management
-- **Tailwind CSS** - Styling
+| Layer | Tools |
+|---|---|
+| Framework | React 19, TypeScript, Vite |
+| 3D | Three.js, React Three Fiber, Drei, Rapier Physics |
+| Animation | Framer Motion, Spring Physics, CSS Transitions |
+| Styling | Tailwind CSS, PostCSS |
+| State | Zustand (persisted to localStorage) |
+| Deployment | Vercel |
 
-## Getting Started
+## Quick Start
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+npm run dev       # http://localhost:5173
+npm run build     # production build
+npm run preview   # preview production build
 ```
+
+## Quick Tips
+
+### Experiments Gallery
+
+- Click any folder to open its info modal with description, tags, stack, and metadata
+- Experiments with live previews render interactive components as hero sections
+- GitHub links are included for code-based experiments
+- Drag folders to rearrange on the desktop
+
+### 3D Workspace
+
+- Click the **monitor** to open case studies
+- Click the **bookshelf** to browse the reading list
+- Click the **camera** to open the photo gallery
+- Click the **basketball hoop** to launch the arcade game
+- Click the **pendant lamp** to toggle day/night lighting
+
+### Hoop Dreams
+
+- Hold and release to shoot — timing and power affect trajectory
+- Chain consecutive baskets for streak multipliers
+- Scores tracked on a global leaderboard
+
+### Hablamos
+
+- Hover the particle sphere to see it react to cursor movement
+- Audio playback drives sphere distortion in real-time
+- Supports English–Spanish word pairs with variable playback speed
+
+### PGR Logo Carousel
+
+- Click through 7 slides showing the Progressive logo animation build process
+- Each slide includes a looping video and step-by-step explanation
+- Slides transition with a masked slide animation
 
 ## Project Structure
 
 ```
-portfolio/
-├── public/
-│   └── models/          # 3D models (.glb files)
-├── src/
-│   ├── components/
-│   │   ├── Scene.tsx           # Main 3D canvas
-│   │   ├── Room.tsx             # GLTF model loader
-│   │   ├── InteractiveObject.tsx  # Reusable interactive component
-│   │   ├── PhotoGallery.tsx     # Photo gallery modal
-│   │   └── BasketballGame.tsx   # Arcade game
-│   ├── lib/
-│   │   ├── store.ts             # Zustand state
-│   │   └── analytics.ts         # Event tracking
-│   ├── App.tsx
-│   └── index.css
-└── vite.config.ts
+src/
+  components/
+    Scene.tsx                    # 3D canvas + 7-layer lighting
+    Room.tsx                     # GLTF model + interactive objects
+    Basketball3DGameRapier.tsx   # 3D arcade game with physics
+    PhotoGallery.tsx             # Masonry gallery modal
+    LiquidGlassNav.tsx           # Frosted glass navigation
+    SoftSceneEffects.tsx         # Post-processing pipeline
+    experiments/
+      ExperimentsDesktop.tsx     # Folder-based experiment gallery
+      Typewriter.tsx             # Typewriter animation
+      AccordionModule.tsx        # Spring-animated accordion
+      MetricsGrid.tsx            # Canvas grid tracer animation
+      PGRLogoCarousel.tsx        # Video carousel with slide transitions
+      TranslatorHero.tsx         # Audio-reactive translation hero
+  lib/
+    store.ts                     # Zustand state management
+    analytics.ts                 # Event tracking
+    physics.ts                   # Physics utilities
+public/
+  models/                        # GLTF models and textures
+  audio/translator/              # English-Spanish audio pairs
+  photos/                        # Gallery photography
+  pgr-logo/                     # Logo animation video exports
+  games/                         # Canvas game assets
 ```
 
-## Features
+## Adding Experiments
 
-### Interactive Objects
-
-- **Computer/Monitor** - Opens case studies in new tab
-- **Bookshelf** - Links to Goodreads profile
-- **Camera** - Opens photo gallery
-- **Basketball Hoop** - Launches arcade game
-- **Pendant Light** - Toggles day/night lighting
-
-### User Experience
-
-- Hover effects on interactive objects
-- Smooth camera orbit controls
-- Intuitive exploration without tutorials
-- Analytics tracking for all interactions
-
-## Adding Your Blender Model
-
-1. Export your Blender scene as `.glb` format
-2. Place it in `public/models/workspace.glb`
-3. See `BLENDER-EXPORT-GUIDE.md` for detailed instructions
-
-The code will automatically load and render your model.
-
-## Customization
-
-### Update Case Study Link
-
-In `src/components/Room.tsx`, update the computer click handler:
+Append to the `EXPERIMENTS` array in `ExperimentsDesktop.tsx`:
 
 ```typescript
-window.open('https://your-framer-url.com', '_blank')
+{
+  id: "my-experiment",
+  label: "My Experiment",
+  number: "011",
+  contentType: "info",
+  description: "What it does.",
+  tags: ["Tag1", "Tag2"],
+  category: "Category / Subcategory",
+  stack: ["React", "TypeScript"],
+  position: { x: 40, y: 50 },
+  github: "https://github.com/...",       // optional
+  url: "https://live-demo.com",           // optional
+  previewComponent: "my-preview",         // optional — renders live in modal
+}
 ```
-
-### Update Goodreads Link
-
-In `src/components/Room.tsx`, update the bookshelf click handler:
-
-```typescript
-window.open('https://goodreads.com/your-profile', '_blank')
-```
-
-### Add Your Photos
-
-Replace placeholder photos in `src/components/PhotoGallery.tsx`:
-
-```typescript
-const PHOTOS = [
-  { id: 1, url: '/photos/photo1.jpg', title: 'My Photo 1' },
-  // ... more photos
-]
-```
-
-## Performance
-
-Target metrics:
-- Load time: <3 seconds
-- Frame rate: 60fps
-- File size: <10MB
-
-Tips:
-- Use Draco compression for large models
-- Optimize textures (2K max)
-- Use instancing for repeated objects (books)
-
-## Analytics
-
-Events tracked:
-- `computer_click` - Case study link clicked
-- `bookshelf_click` - Goodreads visited
-- `camera_click` - Photo gallery opened
-- `basketball_click` - Game started
-- `light_toggle` - Light switched
-
-View analytics in browser console or integrate with Vercel Analytics.
 
 ## Deployment
 
-### Vercel (Recommended)
+Deployed on Vercel. Push to `main` to trigger a production build.
 
 ```bash
-# Install Vercel CLI
 npm i -g vercel
-
-# Deploy
 vercel
 ```
 
-### Manual Build
+## Author
 
-```bash
-npm run build
-# Upload `dist/` folder to your hosting provider
-```
-
-## Browser Support
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-Requires WebGL support.
-
-## Development Notes
-
-- Placeholder geometry will be replaced when you add your Blender model
-- All interactive features are working with placeholders
-- Focus on craft - small details matter
-- Iterate on lighting and materials after model import
+**Keith Scott** — Senior Product Designer (Harvard GSD) specializing in enterprise systems design.
 
 ## License
 
-Private portfolio project - All rights reserved
-
----
-
-Built with craft. Quality > Quantity.
+All rights reserved.

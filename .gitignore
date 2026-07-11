@@ -46,3 +46,9 @@ public/models/workspace_original.glb
 # Analytics
 .vercel
 public/models/workspace_old.glb
+.env*
+
+# Next.js build output
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo

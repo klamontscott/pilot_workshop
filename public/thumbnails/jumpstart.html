@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jumpstart Card — Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #FFFFFF;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .card-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: min(80%, calc((100vh - 60px) * 696 / 376));
+    max-width: 900px;
+    min-width: 320px;
+  }
+
+  .card {
+    width: 100%;
+    aspect-ratio: 696 / 376;
+    background: #FAFAFA;
+    border-radius: 0;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+  }
+
+  .label {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111;
+    letter-spacing: -0.3px;
+  }
+
+  .dot {
+    position: absolute;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+  }
+
+  .dot-sphere {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+
+  .dot-icon {
+    position: absolute;
+    inset: -18%;
+    width: 136%;
+    height: 136%;
+    object-fit: cover;
+    object-position: center;
+    pointer-events: none;
+  }
+
+  .dot-border {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 0.5px #D1D5DB;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="card-wrapper">
+  <div class="card" id="card"></div>
+  <span class="label">Jumpstart</span>
+</div>
+
+<script>
+const EASE = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+const dur = '900ms';
+const REF_W = 696; // reference width — all sizes are % of this
+
+function placeholderSVG(color, symbol) {
+  return `data:image/svg+xml,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="50" fill="${color}"/>
+      <text x="50" y="58" text-anchor="middle" font-size="32" fill="white" font-family="sans-serif">${symbol}</text>
+    </svg>
+  `)}`;
+}
+
+/*
+ * All sizes expressed as % of container width.
+ * Positions already %. Everything scales together.
+ *
+ * Reference: 696px wide
+ *   160px → 23%,  120px → 17.2%,  56px → 8%,  30px → 4.3%  etc.
+ */
+
+function getBlur(pct) {
+  // pct = size as % of width
+  if (pct >= 14) return 0;
+  if (pct >= 10) return 0.4;
+  if (pct >= 6.5) return 1;
+  if (pct >= 4) return 1.8;
+  return 2.5;
+}
+
+function getZ(pct) {
+  if (pct >= 14) return 1;
+  if (pct >= 10) return 2;
+  if (pct >= 6.5) return 3;
+  return 4;
+}
+
+function sphereGradient(pct) {
+  if (pct >= 10) {
+    return 'radial-gradient(circle at 36% 30%, #F4F4F6, #ECEDF0 50%, #E6E7EB 100%)';
+  }
+  if (pct >= 5.5) {
+    return 'radial-gradient(circle at 38% 32%, #F2F2F5, #EAEBEE 55%, #E4E5E9 100%)';
+  }
+  return 'radial-gradient(circle at 40% 34%, #F0F1F4, #E8E9EC 60%, #E2E3E7 100%)';
+}
+
+/*
+ * Icon hover positions matched to Keith's screenshot:
+ *   Largest:  x:30  y:36  size:29%  — center-left
+ *   Upper-R:  x:56  y:24  size:19%  — upper-right
+ *   Lower-C:  x:48  y:62  size:16%  — below center
+ *   Right:    x:68  y:42  size:13%  — right
+ */
+const DOTS = [
+  // ═══════════════════════════════════════════
+  // Icon dots — crossing paths, hover positions from screenshot
+  // ═══════════════════════════════════════════
+
+  // Dot 1 (people) — bottom-center → UP-RIGHT
+  {
+    rest:  { x: 35, y: 65, s: 4.3 },
+    hover: { x: 56, y: 27.7, s: 19 },
+    hasIcon: true,
+    image: 'Hero_Icons-26.png',
+    delay: 0.04,
+  },
+  // Dot 2 (FedEx) — bottom-right → UP to below-center
+  {
+    rest:  { x: 50, y: 74, s: 4 },
+    hover: { x: 50, y: 75, s: 16 },
+    hasIcon: true,
+    image: 'Hero_Icons-25.png',
+    delay: 0.08,
+  },
+  // Dot 3 (welcome/monitor) — top-left → DOWN-RIGHT (biggest)
+  {
+    rest:  { x: 24, y: 18, s: 4.6 },
+    hover: { x: 26, y: 45, s: 29 },
+    hasIcon: true,
+    image: 'Hero_Icons-23.png',
+    delay: 0,
+  },
+  // Dot 4 (Teams) — top-center → DOWN-RIGHT
+  {
+    rest:  { x: 42, y: 22, s: 3.7 },
+    hover: { x: 74, y: 51, s: 13 },
+    hasIcon: true,
+    image: 'Hero_Icons-24.png',
+    delay: 0.06,
+  },
+
+  // ═══════════════════════════════════════════
+  // Large — edges, varied directions
+  // ═══════════════════════════════════════════
+
+  { rest: { x: 2, y: 8, s: 23 },   hover: { x: -4, y: 6, s: 21.5 },  hasIcon: false, delay: 0.05 },
+  { rest: { x: 4, y: 92, s: 21.5 }, hover: { x: -6, y: 94, s: 20 },  hasIcon: false, delay: 0.08 },
+  { rest: { x: 48, y: 98, s: 18.7 }, hover: { x: 64, y: 100, s: 17.2 }, hasIcon: false, delay: 0.1 },
+  { rest: { x: 92, y: 88, s: 15.8 }, hover: { x: 94, y: 98, s: 15 },  hasIcon: false, delay: 0.07 },
+  { rest: { x: 85, y: 6, s: 14.4 },  hover: { x: 92, y: -4, s: 13.6 }, hasIcon: false, delay: 0.09 },
+  { rest: { x: 98, y: 48, s: 12.9 }, hover: { x: 100, y: 64, s: 12.2 }, hasIcon: false, delay: 0.06 },
+
+  // ═══════════════════════════════════════════
+  // Medium — varied directions
+  // ═══════════════════════════════════════════
+
+  { rest: { x: 18, y: 44, s: 10.3 }, hover: { x: 6, y: 32, s: 9.8 },   hasIcon: false, delay: 0.07 },
+  { rest: { x: 42, y: 5, s: 9.3 },   hover: { x: 38, y: -8, s: 8.6 },  hasIcon: false, delay: 0.11 },
+  { rest: { x: 78, y: 42, s: 8.3 },  hover: { x: 90, y: 38, s: 7.8 },  hasIcon: false, delay: 0.09 },
+  { rest: { x: 72, y: 14, s: 7.9 },  hover: { x: 74, y: 2, s: 7.2 },   hasIcon: false, delay: 0.12 },
+  { rest: { x: 52, y: 48, s: 7.2 },  hover: { x: 82, y: 72, s: 6.6 },  hasIcon: false, delay: 0.08 },
+
+  // ═══════════════════════════════════════════
+  // Small
+  // ═══════════════════════════════════════════
+
+  { rest: { x: 62, y: 28, s: 6 },   hover: { x: 14, y: 16, s: 5.5 },  hasIcon: false, delay: 0.1 },
+  { rest: { x: 30, y: 78, s: 5.5 }, hover: { x: 28, y: 94, s: 4.9 },  hasIcon: false, delay: 0.13 },
+  { rest: { x: 68, y: 68, s: 5.2 }, hover: { x: 96, y: 52, s: 4.6 },  hasIcon: false, delay: 0.11 },
+  { rest: { x: 88, y: 28, s: 4.9 }, hover: { x: 98, y: 14, s: 4.3 },  hasIcon: false, delay: 0.09 },
+
+  // ═══════════════════════════════════════════
+  // Tiny
+  // ═══════════════════════════════════════════
+
+  { rest: { x: 8, y: 36, s: 2 },    hover: { x: 6, y: 56, s: 1.7 },   hasIcon: false, delay: 0.14 },
+  { rest: { x: 56, y: 16, s: 2.6 }, hover: { x: 18, y: 8, s: 2.3 },   hasIcon: false, delay: 0.12 },
+  { rest: { x: 38, y: 52, s: 2.3 }, hover: { x: 16, y: 72, s: 2 },    hasIcon: false, delay: 0.1 },
+  { rest: { x: 76, y: 56, s: 2.9 }, hover: { x: 88, y: 82, s: 2.6 },  hasIcon: false, delay: 0.13 },
+  { rest: { x: 22, y: 62, s: 1.7 }, hover: { x: 20, y: 48, s: 1.4 },  hasIcon: false, delay: 0.15 },
+  { rest: { x: 96, y: 14, s: 2.3 }, hover: { x: 102, y: 18, s: 2 },   hasIcon: false, delay: 0.11 },
+];
+
+const card = document.getElementById('card');
+let W = card.offsetWidth;
+
+function pxSize(pct) {
+  return Math.round(W * pct / 100);
+}
+
+DOTS.forEach((dot) => {
+  const restPx = pxSize(dot.rest.s);
+  const blur = getBlur(dot.rest.s);
+  const z = getZ(dot.rest.s);
+  const el = document.createElement('div');
+  el.className = 'dot';
+  el.style.zIndex = dot.hasIcon ? 50 : z;
+
+  const sphere = document.createElement('div');
+  sphere.className = 'dot-sphere';
+  sphere.style.background = sphereGradient(dot.rest.s);
+  sphere.style.filter = `blur(${blur}px)`;
+  sphere.style.opacity = 1;
+  sphere.style.transition = `opacity ${dur} ${EASE} ${dot.delay}s`;
+  el.appendChild(sphere);
+
+  if (dot.hasIcon && dot.image) {
+    const img = document.createElement('img');
+    img.className = 'dot-icon';
+    img.src = dot.image;
+    img.alt = '';
+    img.draggable = false;
+    img.style.opacity = 0;
+    img.style.transition = `opacity ${dur} ${EASE} ${dot.delay}s`;
+    el.appendChild(img);
+
+    const border = document.createElement('div');
+    border.className = 'dot-border';
+    border.style.opacity = 0;
+    border.style.transition = `opacity ${dur} ${EASE} ${dot.delay}s`;
+    el.appendChild(border);
+  }
+
+  applyPosition(el, dot.rest, dot.delay);
+  card.appendChild(el);
+  dot._el = el;
+});
+
+function applyPosition(el, pos, delay) {
+  const sz = pxSize(pos.s);
+  el.style.left = pos.x + '%';
+  el.style.top = pos.y + '%';
+  el.style.width = sz + 'px';
+  el.style.height = sz + 'px';
+  el.style.transition = [
+    `left ${dur} ${EASE} ${delay}s`,
+    `top ${dur} ${EASE} ${delay}s`,
+    `width ${dur} ${EASE} ${delay}s`,
+    `height ${dur} ${EASE} ${delay}s`,
+  ].join(', ');
+}
+
+function setHoverState(hovered) {
+  DOTS.forEach((dot) => {
+    const el = dot._el;
+    const pos = hovered ? dot.hover : dot.rest;
+    applyPosition(el, pos, dot.delay);
+
+    const sphere = el.querySelector('.dot-sphere');
+    if (dot.hasIcon) {
+      sphere.style.opacity = hovered ? 0 : 1;
+      const img = el.querySelector('.dot-icon');
+      if (img) img.style.opacity = hovered ? 1 : 0;
+      const border = el.querySelector('.dot-border');
+      if (border) border.style.opacity = hovered ? 1 : 0;
+    }
+  });
+}
+
+card.addEventListener('mouseenter', () => setHoverState(true));
+card.addEventListener('mouseleave', () => setHoverState(false));
+
+// Responsive: recalculate sizes on resize
+window.addEventListener('resize', () => {
+  W = card.offsetWidth;
+  // Re-apply current positions with new scale
+  DOTS.forEach((dot) => {
+    const el = dot._el;
+    const pos = card.matches(':hover') ? dot.hover : dot.rest;
+    const sz = pxSize(pos.s);
+    el.style.width = sz + 'px';
+    el.style.height = sz + 'px';
+  });
+});
+
+const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+if (mq.matches) {
+  document.querySelectorAll('.dot, .dot-sphere, .dot-icon, .dot-border').forEach(el => {
+    el.style.transition = 'none';
+  });
+}
+</script>
+
+</body>
+</html>

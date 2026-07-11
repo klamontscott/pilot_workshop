@@ -166,7 +166,7 @@ export default function TranslatorHero({
       const w = entry.contentRect.width;
       const h = entry.contentRect.height;
       containerSizeRef.current = { width: w, height: h };
-      setBreakpoint(w >= 1200 ? "desktop" : w >= 810 ? "tablet" : "mobile");
+      setBreakpoint(w >= 1200 ? "desktop" : w >= 580 ? "tablet" : "mobile");
     });
     ro.observe(el);
     return () => ro.disconnect();
