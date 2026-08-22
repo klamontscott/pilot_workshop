@@ -11,6 +11,8 @@ const PGRLogoCarousel = lazy(() => import("./PGRLogoCarousel"))
 const TranslatorHero = lazy(() => import("./TranslatorHero"))
 const SiteReadme = lazy(() => import("./SiteReadme"))
 const ThumbnailCarousel = lazy(() => import("./ThumbnailCarousel"))
+const SupervisorVideo = lazy(() => import("./SupervisorVideo"))
+const EcomapEmbed = lazy(() => import("./EcomapEmbed"))
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -31,6 +33,7 @@ interface Experiment {
   position: { x: number; y: number }
   previewComponent?: string
   github?: string
+  isNew?: boolean
 }
 
 interface ExperimentsDesktopProps {
@@ -179,6 +182,32 @@ const EXPERIMENTS: Experiment[] = [
     stack: ["HTML", "CSS", "Canvas", "JavaScript"],
     position: { x: 72, y: 82 },
     previewComponent: "thumbnail-carousel",
+  },
+  {
+    id: "supervisor-video",
+    label: "Progressive Animation",
+    number: "012",
+    contentType: "info",
+    description: "A 3:30 motion design video created to socialize the Supervisor Experience Principles across a large organization. Character illustrations built in Illustrator, transferred to After Effects via Overlord, then composed with kinetic typography and sound design into a narrative video.",
+    tags: ["Motion Design", "Video", "Organizational Design"],
+    category: "Motion / Video",
+    stack: ["After Effects", "Illustrator", "Overlord", "Code"],
+    position: { x: 42, y: 38 },
+    previewComponent: "supervisor-video",
+    isNew: true,
+  },
+  {
+    id: "ecomap",
+    label: "Challenging Caller Ecomap",
+    number: "013",
+    contentType: "info",
+    description: "An interactive ecomap visualizing the organizational response to challenging callers. Click through a 9-step progressive reveal showing how roles, escalation paths, and support systems connect across the organization. Built in Figma with interactive prototype wiring.",
+    tags: ["Information Design", "Figma", "Interactive"],
+    category: "Information Design / Interactive",
+    stack: ["Figma", "Prototyping", "Information Architecture"],
+    position: { x: 25, y: 55 },
+    previewComponent: "ecomap-embed",
+    isNew: true,
   },
 ]
 
@@ -1555,15 +1584,35 @@ export default function ExperimentsDesktop({
               {exp.contentType === "external" && (
                 <span
                   style={{
-                    fontSize: 8,
-                    fontWeight: 600,
-                    color: accentColor,
+                    fontSize: 7,
+                    fontWeight: 700,
+                    color: "#fff",
+                    background: accentColor,
                     textTransform: "uppercase",
                     letterSpacing: 1,
-                    opacity: 0.8,
+                    padding: "2px 5px",
+                    borderRadius: 3,
+                    lineHeight: 1,
                   }}
                 >
                   Live
+                </span>
+              )}
+              {exp.isNew && (
+                <span
+                  style={{
+                    fontSize: 7,
+                    fontWeight: 700,
+                    color: "#fff",
+                    background: "#e85d04",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    padding: "2px 5px",
+                    borderRadius: 3,
+                    lineHeight: 1,
+                  }}
+                >
+                  New
                 </span>
               )}
             </motion.div>
@@ -1628,15 +1677,35 @@ export default function ExperimentsDesktop({
               {exp.contentType === "external" && (
                 <span
                   style={{
-                    fontSize: 8,
-                    fontWeight: 600,
-                    color: accentColor,
+                    fontSize: 7,
+                    fontWeight: 700,
+                    color: "#fff",
+                    background: accentColor,
                     textTransform: "uppercase",
                     letterSpacing: 1,
-                    opacity: 0.8,
+                    padding: "2px 5px",
+                    borderRadius: 3,
+                    lineHeight: 1,
                   }}
                 >
                   Live
+                </span>
+              )}
+              {exp.isNew && (
+                <span
+                  style={{
+                    fontSize: 7,
+                    fontWeight: 700,
+                    color: "#fff",
+                    background: "#e85d04",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    padding: "2px 5px",
+                    borderRadius: 3,
+                    lineHeight: 1,
+                  }}
+                >
+                  New
                 </span>
               )}
             </motion.div>
@@ -1756,7 +1825,11 @@ export default function ExperimentsDesktop({
                             ? 410
                             : activeExperiment.previewComponent === "metrics-grid"
                               ? 220
-                              : 140,
+                              : activeExperiment.previewComponent === "supervisor-video"
+                                ? 480
+                                : activeExperiment.previewComponent === "ecomap-embed"
+                                  ? 560
+                                  : 140,
                       flex: activeExperiment.previewComponent === "site-readme" ? 1 : undefined,
                       minHeight: activeExperiment.previewComponent === "site-readme" ? 0 : undefined,
                       overflow: activeExperiment.previewComponent === "site-readme" ? "auto" : undefined,
@@ -1789,6 +1862,16 @@ export default function ExperimentsDesktop({
                       {activeExperiment.previewComponent === "thumbnail-carousel" && (
                         <div style={{ width: "100%", height: "100%" }}>
                           <ThumbnailCarousel />
+                        </div>
+                      )}
+                      {activeExperiment.previewComponent === "supervisor-video" && (
+                        <div style={{ width: "100%", height: "100%" }}>
+                          <SupervisorVideo />
+                        </div>
+                      )}
+                      {activeExperiment.previewComponent === "ecomap-embed" && (
+                        <div style={{ width: "100%", height: "100%" }}>
+                          <EcomapEmbed />
                         </div>
                       )}
                       {activeExperiment.previewComponent === "site-readme" && (
