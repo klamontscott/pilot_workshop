@@ -53,7 +53,7 @@ const EXPERIMENTS: Experiment[] = [
     contentType: "external",
     description: "An immersive 3D room built in Three.js showcasing portfolio work in a navigable space. Walk through a virtual studio and interact with project displays.",
     url: "https://portfolioroom-coral.vercel.app/",
-    tags: ["3D", "Immersive", "WebGL"],
+    tags: ["3D", "Immersive", "WebGL", "AI"],
     category: "3D / Immersive",
     stack: ["Three.js", "React Three Fiber", "Drei", "Blender", "GLTF"],
     position: { x: 38, y: 22 },
@@ -77,7 +77,7 @@ const EXPERIMENTS: Experiment[] = [
     number: "003",
     contentType: "game",
     description: "A 3D basketball shooting game with physics-based ball mechanics, a shot power meter, streak multipliers, and a global leaderboard. Built with React Three Fiber and Rapier physics.",
-    tags: ["Game", "3D", "Physics"],
+    tags: ["Game", "3D", "Physics", "AI"],
     category: "Game / Interactive",
     stack: ["React Three Fiber", "Rapier Physics", "Drei", "Zustand", "TypeScript"],
     position: { x: 50, y: 48 },
@@ -114,7 +114,7 @@ const EXPERIMENTS: Experiment[] = [
     contentType: "info",
     description: "A bilingual translation hero with a reactive particle sphere that responds to audio playback and cursor movement. Supports English-Spanish word translation with variable playback speed.",
     url: "https://www.keithscottii.com/hablamos",
-    tags: ["Audio", "Bilingual", "3D"],
+    tags: ["Audio", "Bilingual", "3D", "AI"],
     category: "3D / Audio",
     stack: ["Three.js", "React Three Fiber", "Web Audio API", "GLSL Shaders", "TypeScript"],
     position: { x: 62, y: 62 },
@@ -152,7 +152,7 @@ const EXPERIMENTS: Experiment[] = [
     number: "009",
     contentType: "info",
     description: "An interactive before/after carousel with spring-animated pill buttons, image sequences with peel-off transitions, and chevron navigation. Built for the Jump Start onboarding case study.",
-    tags: ["Interactive", "Animation", "Case Study"],
+    tags: ["Interactive", "Animation", "Case Study", "AI"],
     category: "Component / Interactive",
     stack: ["React", "Framer Motion", "Spring Physics", "TypeScript"],
     position: { x: 20, y: 78 },
@@ -177,7 +177,7 @@ const EXPERIMENTS: Experiment[] = [
     number: "011",
     contentType: "info",
     description: "Three interactive portfolio thumbnails — each with a unique hover interaction. Hablamos plays a video reveal, Jump Start scatters spheres into icon bubbles, and Experiments drives a particle field with cursor physics and font-cycling easter eggs.",
-    tags: ["UI", "Motion Design", "Interactive"],
+    tags: ["UI", "Motion Design", "Interactive", "AI"],
     category: "Component / Interactive",
     stack: ["HTML", "CSS", "Canvas", "JavaScript"],
     position: { x: 72, y: 82 },
@@ -202,7 +202,7 @@ const EXPERIMENTS: Experiment[] = [
     number: "013",
     contentType: "info",
     description: "An interactive ecomap visualizing the organizational response to challenging callers. Click through a 9-step progressive reveal showing how roles, escalation paths, and support systems connect across the organization. Built in Figma with interactive prototype wiring.",
-    tags: ["Information Design", "Figma", "Interactive"],
+    tags: ["Information Design", "Figma", "Interactive", "AI"],
     category: "Information Design / Interactive",
     stack: ["Figma", "Prototyping", "Information Architecture"],
     position: { x: 25, y: 55 },
@@ -1111,6 +1111,7 @@ export default function ExperimentsDesktop({
     if (activeFilter === "components") return exp.category.startsWith("Component")
     if (activeFilter === "3d") return (exp.tags || []).includes("3D") || exp.category.startsWith("3D")
     if (activeFilter === "motion") return exp.category.startsWith("Motion") || (exp.tags || []).includes("Motion Design")
+    if (activeFilter === "ai") return (exp.tags || []).includes("AI")
     return true
   }, [activeFilter])
 
@@ -1420,6 +1421,7 @@ export default function ExperimentsDesktop({
                 { label: "Components", filter: "components" },
                 { label: "3D / Immersive", filter: "3d" },
                 { label: "Motion", filter: "motion" },
+                { label: "AI", filter: "ai" },
               ].map((item, i) =>
                 'divider' in item && !('label' in item) ? (
                   <div key={i} style={{ height: 1, background: "rgba(0,0,0,0.1)", margin: "4px 0" }} />
