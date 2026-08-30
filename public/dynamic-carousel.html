@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Carousel — Jump Start Before/After</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .module {
+      width: 1000px;
+      height: 520px;
+      background: #F5F5F7;
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Image area */
+    .image-area {
+      position: absolute;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(40px);
+      transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+                  transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+    .image-area.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .image-area img {
+      width: 100%;
+      display: block;
+    }
+
+    /* Peel stack */
+    .peel-stack { position: relative; }
+    .peel-stack img {
+      width: 100%;
+      display: block;
+    }
+    .peel-stack img:not(:last-child) {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .peel-stack img.peeled {
+      transition: transform 1.7s cubic-bezier(0.65, 0, 0.35, 1);
+      transform: translateX(800px);
+    }
+
+    /* Chevrons */
+    .chevrons {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    .chevrons.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .chevron-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ECECF0;
+      transition: opacity 0.2s, background 0.2s;
+    }
+    .chevron-btn:disabled {
+      opacity: 0.5;
+      background: #E5E5E7;
+      cursor: default;
+    }
+    .chevron-btn svg path {
+      transition: stroke 0.2s;
+    }
+
+    /* Close button */
+    .close-btn {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #ECECF0;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      opacity: 0;
+      transform: scale(0.8);
+      pointer-events: none;
+      transition: opacity 0.3s cubic-bezier(0.34, 1.4, 0.64, 1),
+                  transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    .close-btn.visible {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    /* Pills container */
+    .pills-container {
+      position: absolute;
+      left: 76px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+      z-index: 10;
+    }
+
+    /* Individual pill */
+    .pill {
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      cursor: pointer;
+      overflow: hidden;
+      position: relative;
+      opacity: 0;
+      transform: scale(0.6) translateY(20px);
+    }
+    .pill.entered {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      transition: opacity 0.05s, transform 0.5s cubic-bezier(0.25, 1.1, 0.5, 1);
+    }
+    .pill.expanded {
+      padding: 18px;
+      background: rgba(236, 236, 240, 0.8) !important;
+    }
+    .pill:not(.expanded) {
+      background: #ECECF0;
+    }
+
+    /* Pill collapsed content */
+    .pill-collapsed {
+      display: flex;
+      align-items: center;
+      transition: opacity 0.4s;
+    }
+    .pill.expanded .pill-collapsed {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .pill-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pill-label {
+      margin-left: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #000;
+      white-space: nowrap;
+    }
+
+    /* Pill expanded content */
+    .pill-expanded {
+      position: absolute;
+      left: 18px;
+      top: 0;
+      bottom: 0;
+      width: 284px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #000;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+    .pill-expanded.visible {
+      opacity: 1;
+    }
+    .pill-expanded strong { font-weight: 600; }
+    .pill-expanded .highlight { font-weight: 600; color: #248A3D; }
+
+    /* Fullscreen overlay */
+    .fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+    .fullscreen-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .fullscreen-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    /* Fullscreen expand button */
+    .expand-btn {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+    }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────
+const PILLS = [
+  {
+    id: 'pill-1', label: 'Classroom Schedule',
+    expandedTitle: 'Classroom Schedule (Before):',
+    defaultWidth: 204, expandedHeight: 124,
+    expandedContent: 'Supervisors spent full days walking new hires through setup, unable to leave even when most were ready.',
+    image: 'accordion/classroom-schedule.png',
+    imageWidth: 750, imageLeft: '27.5%', imageBottom: -100,
+  },
+  {
+    id: 'pill-2', label: 'Self-Setup',
+    expandedTitle: 'Self-Setup (After):',
+    defaultWidth: 140, expandedHeight: 124,
+    expandedContent: 'Redesigned the onboarding model around self-guided setup with targeted interventions where new hires needed them most.',
+    highlight: 'Support down 72%.',
+    image: 'accordion/self-setup.png',
+    imageWidth: 750, imageLeft: '27.5%', imageBottom: -100,
+  },
+  {
+    id: 'pill-3', label: 'Ticket Overload',
+    expandedTitle: 'Ticket Overload (Before):',
+    defaultWidth: 172, expandedHeight: 148,
+    expandedContent: 'IT fielded an unpredictable flood of tickets from new hires and supervisors with no way to forecast volume. Phone calls turned into hour-long walkthroughs.',
+    image: 'accordion/ticket-overload.png',
+    imageWidth: 210, imageLeft: '57.5%', imageBottom: -40,
+  },
+  {
+    id: 'pill-4', label: 'Office Hours',
+    expandedTitle: 'Office Hours (After):',
+    defaultWidth: 152, expandedHeight: 152,
+    expandedContent: 'Structured IT sessions paired with the interactive guide. New hires arrived with specific sections to work through and were routed to breakout rooms by topic. Predictable volume, focused help.',
+    image: 'accordion/office-hours.png',
+    imageWidth: 210, imageLeft: '57.5%', imageBottom: -40,
+  },
+  {
+    id: 'pill-5', label: 'PDF Binder',
+    expandedTitle: 'PDF Binder (Before):',
+    defaultWidth: 140, expandedHeight: 152,
+    expandedContent: '35+ pages printed per new hire with an 8-week lead time. Multiple editors making untracked changes. Not accessible, not on brand, outdated by the time it shipped.',
+    image: 'accordion/pdf-binder.png',
+    imageWidth: 750, imageLeft: '25%', imageBottom: -20,
+  },
+  {
+    id: 'pill-6', label: 'Interactive Guide',
+    expandedTitle: 'Interactive Guide (After):',
+    defaultWidth: 188, expandedHeight: 124,
+    expandedContent: 'Replaced print with a sectioned, accessible digital guide. Built a maintenance plan for tracked edits and long-term ownership.',
+    image: 'accordion/guide-1.png',
+    imageSequence: [
+      'accordion/guide-1.png',
+      'accordion/guide-2.png',
+      'accordion/guide-3.png',
+      'accordion/guide-4.png',
+      'accordion/guide-5.png',
+    ],
+    imageWidth: 750, imageLeft: '28.5%', imageBottom: -100,
+  },
+];
+
+const EXPANDED_WIDTH = 320;
+const DEFAULT_HEIGHT = 48;
+
+// ─── Spring engine ───────────────────────────────────────────────────
+const SUBSTEPS = 4;
+const DT = (1 / 60) / SUBSTEPS;
+const REST_THRESHOLD = 0.4;
+
+const activeSprings = new Set();
+let loopRunning = false;
+
+function createSpring(initial, config) {
+  return { value: initial, target: initial, velocity: 0, ...config, settled: true };
+}
+
+function setSpringTarget(spring, target) {
+  spring.target = target;
+  spring.settled = false;
+  activeSprings.add(spring);
+  startLoop();
+}
+
+function tickSpring(s) {
+  for (let i = 0; i < SUBSTEPS; i++) {
+    const force = -s.stiffness * (s.value - s.target);
+    const damp = -s.damping * s.velocity;
+    s.velocity += ((force + damp) / s.mass) * DT;
+    s.value += s.velocity * DT;
+  }
+  if (Math.abs(s.value - s.target) < REST_THRESHOLD && Math.abs(s.velocity) < REST_THRESHOLD) {
+    s.value = s.target;
+    s.velocity = 0;
+    s.settled = true;
+    activeSprings.delete(s);
+  }
+}
+
+function animationLoop() {
+  for (const s of activeSprings) tickSpring(s);
+  renderSprings();
+  if (activeSprings.size > 0) {
+    requestAnimationFrame(animationLoop);
+  } else {
+    loopRunning = false;
+  }
+}
+
+function startLoop() {
+  if (!loopRunning) {
+    loopRunning = true;
+    requestAnimationFrame(animationLoop);
+  }
+}
+
+// ─── Spring configs ──────────────────────────────────────────────────
+const SPRING = { stiffness: 250, damping: 28, mass: 2.5 };
+const COLLAPSE_SPRING = { stiffness: 250, damping: 35, mass: 2.5 };
+
+// ─── State ───────────────────────────────────────────────────────────
+let selectedPillId = null;
+let previousIndex = null;
+let expandDirection = 'down';
+let showChevrons = false;
+let showTextPill = null;
+let peeledOffCount = 0;
+let isFullscreen = false;
+let textTimer = null;
+let peelTimers = [];
+
+// Per-pill spring state
+const pillSprings = PILLS.map(pill => ({
+  width: createSpring(pill.defaultWidth, COLLAPSE_SPRING),
+  height: createSpring(DEFAULT_HEIGHT, COLLAPSE_SPRING),
+}));
+
+// ─── DOM refs ────────────────────────────────────────────────────────
+let pillEls = [];
+let pillExpandedEls = [];
+let imageArea = null;
+let chevronsEl = null;
+let chevronUpBtn = null;
+let chevronDownBtn = null;
+let closeBtnEl = null;
+let expandBtnEl = null;
+let overlayEl = null;
+
+// ─── Build DOM ───────────────────────────────────────────────────────
+function build() {
+  const root = document.getElementById('root');
+
+  // Module
+  const mod = el('div', { className: 'module', id: 'module' });
+
+  // Image area
+  imageArea = el('div', { className: 'image-area' });
+  mod.appendChild(imageArea);
+
+  // Chevrons
+  chevronsEl = el('div', { className: 'chevrons' });
+  chevronUpBtn = el('button', { className: 'chevron-btn', innerHTML: svg('up') });
+  chevronDownBtn = el('button', { className: 'chevron-btn', innerHTML: svg('down') });
+  chevronUpBtn.addEventListener('click', () => navigate('up'));
+  chevronDownBtn.addEventListener('click', () => navigate('down'));
+  chevronsEl.append(chevronUpBtn, chevronDownBtn);
+  mod.appendChild(chevronsEl);
+
+  // Close button
+  closeBtnEl = el('button', {
+    className: 'close-btn',
+    innerHTML: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4L12 12" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>',
+  });
+  closeBtnEl.addEventListener('click', handleClose);
+  mod.appendChild(closeBtnEl);
+
+  // Pills container
+  const pillsContainer = el('div', { className: 'pills-container' });
+  PILLS.forEach((pill, i) => {
+    const p = el('div', { className: 'pill' });
+    p.style.width = pill.defaultWidth + 'px';
+    p.style.height = DEFAULT_HEIGHT + 'px';
+    p.style.background = '#ECECF0';
+
+    // Collapsed content
+    const collapsed = el('div', { className: 'pill-collapsed' });
+    collapsed.innerHTML = `
+      <div class="pill-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="11" stroke="#000" stroke-width="1.5" fill="none"/>
+          <path d="M12 7V17M7 12H17" stroke="#000" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="pill-label">${pill.label}</div>
+    `;
+    p.appendChild(collapsed);
+
+    // Expanded content
+    const expanded = el('div', { className: 'pill-expanded' });
+    let html = `<div><strong>${pill.expandedTitle}</strong> ${pill.expandedContent}`;
+    if (pill.highlight) html += ` <span class="highlight">${pill.highlight}</span>`;
+    html += '</div>';
+    expanded.innerHTML = html;
+    p.appendChild(expanded);
+
+    p.addEventListener('click', () => selectPill(pill.id));
+
+    pillEls.push(p);
+    pillExpandedEls.push(expanded);
+    pillsContainer.appendChild(p);
+
+    // Cascade entrance
+    const delay = Math.abs(i - 2) * 40 + Math.random() * 10;
+    setTimeout(() => p.classList.add('entered'), 50 + delay);
+  });
+  mod.appendChild(pillsContainer);
+
+  // Expand button
+  expandBtnEl = el('button', {
+    className: 'expand-btn',
+    innerHTML: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  });
+  expandBtnEl.addEventListener('click', () => toggleFullscreen(true));
+  mod.appendChild(expandBtnEl);
+
+  root.appendChild(mod);
+
+  // Fullscreen overlay
+  overlayEl = el('div', { className: 'fullscreen-overlay' });
+  const fsClose = el('button', { className: 'fullscreen-close', textContent: '\u2715' });
+  fsClose.addEventListener('click', () => toggleFullscreen(false));
+  overlayEl.appendChild(fsClose);
+  overlayEl.addEventListener('click', (e) => {
+    if (e.target === overlayEl) toggleFullscreen(false);
+  });
+  document.body.appendChild(overlayEl);
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isFullscreen) toggleFullscreen(false);
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') navigate('up');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') navigate('down');
+  });
+}
+
+// ─── Actions ─────────────────────────────────────────────────────────
+function selectPill(pillId) {
+  if (selectedPillId === pillId) return;
+  if (!showChevrons) {
+    showChevrons = true;
+    chevronsEl.classList.add('visible');
+  }
+
+  const newIndex = PILLS.findIndex(p => p.id === pillId);
+  if (previousIndex !== null) {
+    expandDirection = newIndex > previousIndex ? 'down' : 'up';
+  } else {
+    expandDirection = 'down';
+  }
+
+  const currentIndex = selectedPillId ? PILLS.findIndex(p => p.id === selectedPillId) : null;
+  if (currentIndex !== null) previousIndex = currentIndex;
+
+  // Clear text
+  showTextPill = null;
+  if (textTimer) { clearTimeout(textTimer); textTimer = null; }
+  pillExpandedEls.forEach(el => el.classList.remove('visible'));
+
+  selectedPillId = pillId;
+
+  // Animate springs
+  PILLS.forEach((pill, i) => {
+    const isExpanded = pill.id === pillId;
+    const config = isExpanded ? SPRING : COLLAPSE_SPRING;
+    const springs = pillSprings[i];
+
+    springs.width.stiffness = config.stiffness;
+    springs.width.damping = config.damping;
+    springs.width.mass = config.mass;
+    springs.height.stiffness = config.stiffness;
+    springs.height.damping = config.damping;
+    springs.height.mass = config.mass;
+
+    setSpringTarget(springs.width, isExpanded ? EXPANDED_WIDTH : pill.defaultWidth);
+    setSpringTarget(springs.height, isExpanded ? pill.expandedHeight : DEFAULT_HEIGHT);
+
+    pillEls[i].classList.toggle('expanded', isExpanded);
+    pillEls[i].style.transformOrigin = isExpanded
+      ? (expandDirection === 'down' ? 'top left' : 'bottom left')
+      : 'top left';
+  });
+
+  // Show close button
+  closeBtnEl.classList.add('visible');
+
+  // Update chevron states
+  updateChevrons();
+
+  // Show text after delay
+  textTimer = setTimeout(() => {
+    showTextPill = pillId;
+    const idx = PILLS.findIndex(p => p.id === pillId);
+    pillExpandedEls[idx].classList.add('visible');
+    showImage(pillId);
+    textTimer = null;
+  }, 550);
+
+  // Hide image during transition
+  imageArea.classList.remove('visible');
+
+  // Peel timers
+  clearPeelTimers();
+  if (pillId === 'pill-6') startPeelSequence();
+}
+
+function handleClose() {
+  if (!selectedPillId) return;
+  showTextPill = null;
+  if (textTimer) { clearTimeout(textTimer); textTimer = null; }
+  pillExpandedEls.forEach(el => el.classList.remove('visible'));
+
+  // Collapse all
+  PILLS.forEach((pill, i) => {
+    const springs = pillSprings[i];
+    springs.width.stiffness = COLLAPSE_SPRING.stiffness;
+    springs.width.damping = COLLAPSE_SPRING.damping;
+    springs.width.mass = COLLAPSE_SPRING.mass;
+    springs.height.stiffness = COLLAPSE_SPRING.stiffness;
+    springs.height.damping = COLLAPSE_SPRING.damping;
+    springs.height.mass = COLLAPSE_SPRING.mass;
+
+    setSpringTarget(springs.width, pill.defaultWidth);
+    setSpringTarget(springs.height, DEFAULT_HEIGHT);
+    pillEls[i].classList.remove('expanded');
+  });
+
+  selectedPillId = null;
+  closeBtnEl.classList.remove('visible');
+  imageArea.classList.remove('visible');
+  clearPeelTimers();
+}
+
+function navigate(direction) {
+  expandDirection = direction;
+  if (textTimer) { clearTimeout(textTimer); textTimer = null; }
+
+  if (!selectedPillId) {
+    selectPill(PILLS[0].id);
+    return;
+  }
+
+  const currentIndex = PILLS.findIndex(p => p.id === selectedPillId);
+  previousIndex = currentIndex;
+  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+  if (nextIndex >= 0 && nextIndex < PILLS.length) {
+    selectPill(PILLS[nextIndex].id);
+  }
+}
+
+function updateChevrons() {
+  const idx = selectedPillId ? PILLS.findIndex(p => p.id === selectedPillId) : -1;
+  chevronUpBtn.disabled = idx <= 0;
+  chevronDownBtn.disabled = idx >= PILLS.length - 1;
+  chevronUpBtn.querySelector('path').setAttribute('stroke', idx <= 0 ? '#999' : '#000');
+  chevronDownBtn.querySelector('path').setAttribute('stroke', idx >= PILLS.length - 1 ? '#999' : '#000');
+}
+
+function showImage(pillId) {
+  const pill = PILLS.find(p => p.id === pillId);
+  if (!pill || !pill.image) return;
+
+  imageArea.innerHTML = '';
+  imageArea.style.left = pill.imageLeft;
+  imageArea.style.bottom = pill.imageBottom + 'px';
+  imageArea.style.width = pill.imageWidth + 'px';
+
+  if (pill.imageSequence) {
+    const stack = el('div', { className: 'peel-stack' });
+    pill.imageSequence.forEach((src, i) => {
+      const img = el('img', { src });
+      img.style.zIndex = pill.imageSequence.length - i;
+      img.dataset.peelIndex = i;
+      stack.appendChild(img);
+    });
+    imageArea.appendChild(stack);
+  } else {
+    imageArea.appendChild(el('img', { src: pill.image }));
+  }
+
+  // Trigger reflow then show
+  imageArea.offsetHeight;
+  imageArea.classList.add('visible');
+}
+
+function startPeelSequence() {
+  peeledOffCount = 0;
+  const pill = PILLS.find(p => p.id === 'pill-6');
+  if (!pill || !pill.imageSequence) return;
+
+  const entranceDelay = 600;
+  const delayBefore = 300;
+  const peelDuration = 1700;
+  const delayBetween = 600;
+
+  for (let i = 0; i < pill.imageSequence.length - 1; i++) {
+    const timer = setTimeout(() => {
+      peeledOffCount = i + 1;
+      const imgs = imageArea.querySelectorAll('.peel-stack img');
+      for (let j = 0; j < peeledOffCount; j++) {
+        if (imgs[j]) imgs[j].classList.add('peeled');
+      }
+    }, entranceDelay + delayBefore + i * (peelDuration + delayBetween));
+    peelTimers.push(timer);
+  }
+}
+
+function clearPeelTimers() {
+  peelTimers.forEach(t => clearTimeout(t));
+  peelTimers = [];
+  peeledOffCount = 0;
+}
+
+function toggleFullscreen(on) {
+  isFullscreen = on;
+  overlayEl.classList.toggle('active', on);
+  expandBtnEl.style.display = on ? 'none' : '';
+
+  if (on) {
+    const mod = document.getElementById('module');
+    overlayEl.appendChild(mod);
+    mod.addEventListener('click', (e) => e.stopPropagation(), { once: false });
+  } else {
+    const mod = document.getElementById('module');
+    document.getElementById('root').appendChild(mod);
+  }
+}
+
+// ─── Render loop (spring-driven) ─────────────────────────────────────
+function renderSprings() {
+  PILLS.forEach((pill, i) => {
+    const springs = pillSprings[i];
+    pillEls[i].style.width = Math.round(springs.width.value * 10) / 10 + 'px';
+    pillEls[i].style.height = Math.round(springs.height.value * 10) / 10 + 'px';
+  });
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+function el(tag, props) {
+  const e = document.createElement(tag);
+  if (props) Object.entries(props).forEach(([k, v]) => {
+    if (k === 'className') e.className = v;
+    else if (k === 'innerHTML') e.innerHTML = v;
+    else if (k === 'textContent') e.textContent = v;
+    else e.setAttribute(k, v);
+  });
+  return e;
+}
+
+function svg(dir) {
+  const d = dir === 'up' ? 'M4 10L8 6L12 10' : 'M4 6L8 10L12 6';
+  return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="${d}" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+// ─── Init ────────────────────────────────────────────────────────────
+build();
+</script>
+</body>
+</html>
