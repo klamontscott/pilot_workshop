@@ -3,59 +3,86 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { books, getCoverUrl, type Book } from '../lib/bookData'
 
 // ── Dimensions ─────────────────────────────────────────────────
-// Book lying flat (horizontal). We're looking at it from slightly above.
-//   W = left-to-right (the long axis of the spine)
-//   D = front-to-back (the cover depth / how far the book extends away)
-//   H = thickness (spine height — the short vertical axis when lying flat)
+// Book lying flat. Viewed from slightly above and to the right.
+//   W = spine length (left-to-right)
+//   D = cover depth (front-to-back)
+//   H = thickness (vertical)
+//
+// CSS 3D cuboid face positions (container W×H, depth D):
+//   Front  (W×H): translateZ(D/2)
+//   Back   (W×H): rotateY(180deg) translateZ(D/2)
+//   Top    (W×D): translateY((H-D)/2) rotateX(90deg) translateZ(H/2)
+//   Bottom (W×D): translateY((H-D)/2) rotateX(-90deg) translateZ(H/2)
+//   Right  (D×H): translateX((W-D)/2) rotateY(90deg) translateZ(W/2)
+//   Left   (D×H): translateX((W-D)/2) rotateY(-90deg) translateZ(W/2)
 
-const W = 520 // spine length
-const D = 180 // cover depth
-const BASE_H = 50 // base thickness, scaled by book.thickness
+const W = 520
+const D = 160
+const BASE_H = 56
 
-// ── Single 3D Book (shelf view) ───────────────────────────────
+/** Darken a hex color by a factor (0 = black, 1 = unchanged) */
+function darken(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const dr = Math.round(r * factor)
+  const dg = Math.round(g * factor)
+  const db = Math.round(b * factor)
+  return `rgb(${dr},${dg},${db})`
+}
+
+// ── Shelf Book (lying flat) ───────────────────────────────────
 
 function Book3D({ book }: { book: Book }) {
   const [coverLoaded, setCoverLoaded] = useState(false)
   const [coverError, setCoverError] = useState(false)
-  const H = BASE_H * (book.thickness ?? 1)
-
-  // Half-dimensions for centering transforms
-  const halfH = H / 2
+  const H = Math.round(BASE_H * (book.thickness ?? 1))
 
   return (
     <div
       style={{
-        // The perspective container — needs enough room for the 3D object + perspective
-        width: W + D,
-        height: H + D,
-        perspective: 1200,
-        perspectiveOrigin: '50% 30%',
+        width: W + 100,
+        height: H + D + 60,
+        perspective: 1600,
+        perspectiveOrigin: '50% 40%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
       }}
     >
-      {/* 3D object — all faces positioned relative to this container's center */}
+      {/* Shadow (separate from 3D container to avoid flattening) */}
+      <div
+        style={{
+          position: 'absolute',
+          width: W * 0.75,
+          height: D * 0.4,
+          bottom: '12%',
+          left: '52%',
+          transform: 'translateX(-50%) skewX(5deg)',
+          background: 'radial-gradient(ellipse at 55% 50%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 40%, transparent 70%)',
+          borderRadius: '50%',
+          pointerEvents: 'none',
+        }}
+      />
       <div
         style={{
           width: W,
           height: H,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          // Slight rotation so we see the top face and right edge
-          transform: `
-            translateX(${D * 0.15}px)
-            translateY(${D * 0.35}px)
-            rotateX(-25deg)
-            rotateY(20deg)
-          `,
+          transform: 'rotateX(-18deg) rotateY(-15deg)',
         }}
       >
-        {/* FRONT face — the spine (faces the viewer) */}
+        {/* FRONT — spine (extended 1px top/bottom to close sub-pixel gaps) */}
         <div
           style={{
             position: 'absolute',
             width: W,
-            height: H,
+            height: H + 2,
+            top: -1,
             backgroundColor: book.spineColor,
-            transform: `translateZ(${halfH}px)`,
+            transform: `translateZ(${D / 2}px)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -63,66 +90,34 @@ function Book3D({ book }: { book: Book }) {
             backfaceVisibility: 'hidden',
           }}
         >
-          <span
-            style={{
-              color: 'rgba(255,255,255,0.65)',
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '35%',
-            }}
-          >
-            {book.author}
-          </span>
-          <span
-            style={{
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.02em',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '45%',
-              textAlign: 'center',
-            }}
-          >
-            {book.title}
-          </span>
+          <span style={spineAuthorStyle}>{book.author}</span>
+          <span style={spineTitleStyle}>{book.title}</span>
           <div style={{ width: 20 }} />
         </div>
 
-        {/* BACK face — hidden from this angle but completes the box */}
+        {/* BACK */}
         <div
           style={{
             position: 'absolute',
             width: W,
             height: H,
-            backgroundColor: book.spineColor,
-            transform: `translateZ(-${halfH}px) rotateY(180deg)`,
-            filter: 'brightness(0.7)',
+            backgroundColor: darken(book.spineColor, 0.6),
+            transform: `rotateY(180deg) translateZ(${D / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
 
-        {/* TOP face — the book cover (visible because we're looking down) */}
+        {/* TOP — cover */}
         <div
           style={{
             position: 'absolute',
             width: W,
             height: D,
             backgroundColor: book.spineColor,
-            transform: `
-              rotateX(90deg)
-              translateZ(0px)
-              translateY(-${D / 2}px)
-            `,
+            transform: `translateY(${(H - D) / 2}px) rotateX(90deg) translateZ(${H / 2}px)`,
             overflow: 'hidden',
             backfaceVisibility: 'hidden',
+            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.15)',
           }}
         >
           {!coverError && (
@@ -132,8 +127,10 @@ function Book3D({ book }: { book: Book }) {
               onLoad={() => setCoverLoaded(true)}
               onError={() => setCoverError(true)}
               style={{
-                width: '100%',
-                height: '100%',
+                width: '102%',
+                height: '102%',
+                marginLeft: '-1%',
+                marginTop: '-1%',
                 objectFit: 'cover',
                 opacity: coverLoaded ? 1 : 0,
                 transition: 'opacity 0.4s ease',
@@ -152,67 +149,46 @@ function Book3D({ book }: { book: Book }) {
                 padding: 20,
               }}
             >
-              <span
-                style={{
-                  color: 'rgba(255,255,255,0.4)',
-                  fontSize: 18,
-                  fontWeight: 600,
-                  textAlign: 'center',
-                }}
-              >
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 18, fontWeight: 600, textAlign: 'center' }}>
                 {book.title}
               </span>
             </div>
           )}
         </div>
 
-        {/* BOTTOM face */}
+        {/* BOTTOM */}
         <div
           style={{
             position: 'absolute',
             width: W,
             height: D,
-            backgroundColor: book.spineColor,
-            transform: `
-              rotateX(-90deg)
-              translateZ(${H}px)
-              translateY(-${D / 2}px)
-            `,
-            filter: 'brightness(0.6)',
+            backgroundColor: darken(book.spineColor, 0.5),
+            transform: `translateY(${(H - D) / 2}px) rotateX(-90deg) translateZ(${H / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
 
-        {/* RIGHT face — page edges */}
+        {/* RIGHT — page edges (extended 1px to close gaps) */}
+        <div
+          style={{
+            position: 'absolute',
+            width: D,
+            height: H + 2,
+            top: -1,
+            transform: `translateX(${(W - D) / 2}px) rotateY(90deg) translateZ(${W / 2}px)`,
+            background: 'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            backfaceVisibility: 'hidden',
+          }}
+        />
+
+        {/* LEFT — spine edge */}
         <div
           style={{
             position: 'absolute',
             width: D,
             height: H,
-            transform: `
-              rotateY(90deg)
-              translateZ(${W - D / 2}px)
-              translateX(${D / 2}px)
-            `,
-            background:
-              'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
-            backfaceVisibility: 'hidden',
-          }}
-        />
-
-        {/* LEFT face — spine edge (dark) */}
-        <div
-          style={{
-            position: 'absolute',
-            width: D,
-            height: H,
-            backgroundColor: book.spineColor,
-            transform: `
-              rotateY(-90deg)
-              translateZ(${D / 2}px)
-              translateX(-${D / 2}px)
-            `,
-            filter: 'brightness(0.75)',
+            backgroundColor: darken(book.spineColor, 0.7),
+            transform: `translateX(${(W - D) / 2}px) rotateY(-90deg) translateZ(${W / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
@@ -221,7 +197,33 @@ function Book3D({ book }: { book: Book }) {
   )
 }
 
-// ── Main Bookshelf Component (single book for now) ────────────
+// ── Spine text styles ─────────────────────────────────────────
+
+const spineAuthorStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.65)',
+  fontSize: 11,
+  fontWeight: 500,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  maxWidth: '35%',
+}
+
+const spineTitleStyle: React.CSSProperties = {
+  color: '#fff',
+  fontSize: 13,
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  maxWidth: '45%',
+  textAlign: 'center',
+}
+
+// ── Main Bookshelf (single book for iteration) ───────────────
 
 export default function Bookshelf({ onClose }: { onClose?: () => void }) {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null)
@@ -243,7 +245,6 @@ export default function Bookshelf({ onClose }: { onClose?: () => void }) {
     return () => window.removeEventListener('keydown', handler)
   }, [handleClose])
 
-  // Just the first book for now while we nail the 3D
   const book = books[0]
 
   return (
@@ -275,6 +276,7 @@ export default function Bookshelf({ onClose }: { onClose?: () => void }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '20px 32px',
+          zIndex: 1,
         }}
       >
         <button
@@ -292,9 +294,9 @@ export default function Bookshelf({ onClose }: { onClose?: () => void }) {
             justifyContent: 'center',
             fontSize: 20,
           }}
-          aria-label="Close bookshelf"
+          aria-label={selectedBook ? 'Back to shelf' : 'Close bookshelf'}
         >
-          {'\u2715'}
+          {selectedBook ? '\u2190' : '\u2715'}
         </button>
         <h1
           style={{
@@ -310,7 +312,7 @@ export default function Bookshelf({ onClose }: { onClose?: () => void }) {
         <div style={{ width: 40 }} />
       </div>
 
-      {/* Single book — centered */}
+      {/* Content */}
       <AnimatePresence mode="wait">
         {!selectedBook && (
           <motion.div
@@ -356,18 +358,20 @@ export default function Bookshelf({ onClose }: { onClose?: () => void }) {
 function DetailBook3D({ book }: { book: Book }) {
   const [coverLoaded, setCoverLoaded] = useState(false)
   const [coverError, setCoverError] = useState(false)
-  const thickness = BASE_H * (book.thickness ?? 1)
+  const thickness = Math.round(BASE_H * (book.thickness ?? 1))
   const coverW = 260
   const coverH = 380
-  const halfT = thickness / 2
 
   return (
     <div
       style={{
-        perspective: 1200,
+        perspective: 1400,
         perspectiveOrigin: '50% 50%',
-        width: coverW + thickness,
-        height: coverH + thickness,
+        width: coverW + thickness + 40,
+        height: coverH + 40,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         flexShrink: 0,
       }}
     >
@@ -377,11 +381,7 @@ function DetailBook3D({ book }: { book: Book }) {
           height: coverH,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: `
-            translateX(${thickness * 0.6}px)
-            rotateY(-30deg)
-            rotateX(3deg)
-          `,
+          transform: 'rotateY(-30deg) rotateX(3deg)',
         }}
       >
         {/* Cover (front) */}
@@ -391,7 +391,7 @@ function DetailBook3D({ book }: { book: Book }) {
             width: coverW,
             height: coverH,
             backgroundColor: book.spineColor,
-            transform: `translateZ(${halfT}px)`,
+            transform: `translateZ(${thickness / 2}px)`,
             overflow: 'hidden',
             borderRadius: '0 3px 3px 0',
             backfaceVisibility: 'hidden',
@@ -440,9 +440,8 @@ function DetailBook3D({ book }: { book: Book }) {
             position: 'absolute',
             width: coverW,
             height: coverH,
-            backgroundColor: book.spineColor,
-            transform: `translateZ(-${halfT}px) rotateY(180deg)`,
-            filter: 'brightness(0.7)',
+            backgroundColor: darken(book.spineColor, 0.6),
+            transform: `rotateY(180deg) translateZ(${thickness / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
@@ -453,9 +452,8 @@ function DetailBook3D({ book }: { book: Book }) {
             position: 'absolute',
             width: thickness,
             height: coverH,
-            backgroundColor: book.spineColor,
-            transform: `rotateY(-90deg) translateZ(${thickness / 2}px) translateX(-${thickness / 2}px)`,
-            filter: 'brightness(0.85)',
+            backgroundColor: darken(book.spineColor, 0.8),
+            transform: `translateX(${(coverW - thickness) / 2}px) rotateY(-90deg) translateZ(${coverW / 2}px)`,
             backfaceVisibility: 'hidden',
             display: 'flex',
             alignItems: 'center',
@@ -483,9 +481,8 @@ function DetailBook3D({ book }: { book: Book }) {
             position: 'absolute',
             width: thickness,
             height: coverH,
-            transform: `rotateY(90deg) translateZ(${coverW - thickness / 2}px) translateX(${thickness / 2}px)`,
-            background:
-              'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            transform: `translateX(${(coverW - thickness) / 2}px) rotateY(90deg) translateZ(${coverW / 2}px)`,
+            background: 'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
             backfaceVisibility: 'hidden',
           }}
         />
@@ -496,9 +493,8 @@ function DetailBook3D({ book }: { book: Book }) {
             position: 'absolute',
             width: coverW,
             height: thickness,
-            transform: `rotateX(90deg) translateZ(${thickness / 2}px) translateY(-${thickness / 2}px)`,
-            background:
-              'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            transform: `translateY(${(coverH - thickness) / 2}px) rotateX(90deg) translateZ(${coverH / 2}px)`,
+            background: 'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
             backfaceVisibility: 'hidden',
           }}
         />
@@ -509,10 +505,8 @@ function DetailBook3D({ book }: { book: Book }) {
             position: 'absolute',
             width: coverW,
             height: thickness,
-            transform: `rotateX(-90deg) translateZ(${coverH - thickness / 2}px) translateY(${thickness / 2}px)`,
-            background:
-              'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
-            filter: 'brightness(0.85)',
+            background: '#E8E0D0',
+            transform: `translateY(${(coverH - thickness) / 2}px) rotateX(-90deg) translateZ(${coverH / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
