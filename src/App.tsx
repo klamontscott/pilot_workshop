@@ -2,7 +2,10 @@ import Scene from './components/Scene'
 import PhotoGallery from './components/PhotoGallery'
 import Basketball3DGameRapier from './components/Basketball3DGameRapier'
 import LiquidGlassNav from './components/LiquidGlassNav'
+import Bookshelf from './components/Bookshelf'
 import { Suspense, Component, type ReactNode } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import { useStore } from './lib/store'
 import './index.css'
 
 class ErrorBoundary extends Component<
@@ -47,6 +50,9 @@ class ErrorBoundary extends Component<
 }
 
 function App() {
+  const showBookshelf = useStore((state) => state.showBookshelf)
+  const setShowBookshelf = useStore((state) => state.setShowBookshelf)
+
   return (
     <>
       {/* Main 3D scene */}
@@ -59,6 +65,9 @@ function App() {
           <Basketball3DGameRapier />
         </Suspense>
       </ErrorBoundary>
+      <AnimatePresence>
+        {showBookshelf && <Bookshelf onClose={() => setShowBookshelf(false)} />}
+      </AnimatePresence>
 
       {/* Navigation */}
       <LiquidGlassNav />

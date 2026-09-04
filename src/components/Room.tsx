@@ -92,6 +92,7 @@ export default function Room() {
   const lightOn = useStore((state) => state.lightOn)
   const setShowPhotoGallery = useStore((state) => state.setShowPhotoGallery)
   const setShowBasketballGame = useStore((state) => state.setShowBasketballGame)
+  const setShowBookshelf = useStore((state) => state.setShowBookshelf)
   const setHoveredObject = useStore((state) => state.setHoveredObject)
 
   const renderStyle = useStore((state) => state.renderStyle)
@@ -468,7 +469,7 @@ export default function Room() {
           window.open('https://www.keithscottii.com', '_blank')
         }
       }
-      else if (id === 'bookshelf') window.open('https://www.goodreads.com/review/list/71910989-keith-scott-ii?shelf=favorites', '_blank')
+      else if (id === 'bookshelf') setShowBookshelf(true)
     }
 
     canvas.addEventListener('pointermove', onMove)
@@ -478,7 +479,7 @@ export default function Room() {
       canvas.removeEventListener('click', onClick)
       canvas.style.cursor = 'default'
     }
-  }, [gl, hitTest, toggleLight, setShowPhotoGallery, setShowBasketballGame, setHoveredObject])
+  }, [gl, hitTest, toggleLight, setShowPhotoGallery, setShowBasketballGame, setShowBookshelf, setHoveredObject])
 
   useFrame(() => {
     // Pendant lamp on/off emissive

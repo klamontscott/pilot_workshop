@@ -371,8 +371,9 @@ function WallSconceLight() {
 export default function Scene() {
   const showBasketballGame = useStore((state) => state.showBasketballGame)
   const showPhotoGallery = useStore((state) => state.showPhotoGallery)
+  const showBookshelf = useStore((state) => state.showBookshelf)
   // const toggleRenderStyle = useStore((state) => state.toggleRenderStyle)
-  const paused = showBasketballGame || showPhotoGallery
+  const paused = showBasketballGame || showPhotoGallery || showBookshelf
 
   // Toon mode disabled for production — uncomment to re-enable
   // useEffect(() => {

@@ -12,6 +12,8 @@ interface PortfolioState {
   setShowPhotoGallery: (show: boolean) => void
   showBasketballGame: boolean
   setShowBasketballGame: (show: boolean) => void
+  showBookshelf: boolean
+  setShowBookshelf: (show: boolean) => void
   renderStyle: 'realistic' | 'cartoon'
   toggleRenderStyle: () => void
 }
@@ -30,6 +32,8 @@ export const useStore = create<PortfolioState>((set) => ({
   setShowPhotoGallery: (show) => set({ showPhotoGallery: show }),
   showBasketballGame: false,
   setShowBasketballGame: (show) => set({ showBasketballGame: show }),
+  showBookshelf: false,
+  setShowBookshelf: (show) => set({ showBookshelf: show }),
   renderStyle: 'realistic',
   toggleRenderStyle: () =>
     set((s) => ({
