@@ -1,85 +1,79 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { books, getCoverUrl, type Book } from '../lib/bookData'
 
-// ── Book3D (shelf view — horizontal/flat book) ─────────────────
+// ── Dimensions ─────────────────────────────────────────────────
+// Book lying flat (horizontal). We're looking at it from slightly above.
+//   W = left-to-right (the long axis of the spine)
+//   D = front-to-back (the cover depth / how far the book extends away)
+//   H = thickness (spine height — the short vertical axis when lying flat)
 
-const BOOK_WIDTH = 600
-const BOOK_DEPTH = 160
-const BASE_SPINE_HEIGHT = 64
+const W = 520 // spine length
+const D = 180 // cover depth
+const BASE_H = 50 // base thickness, scaled by book.thickness
 
-function Book3D({
-  book,
-  onClick,
-  index,
-  reducedMotion,
-}: {
-  book: Book
-  onClick: () => void
-  index: number
-  reducedMotion: boolean
-}) {
+// ── Single 3D Book (shelf view) ───────────────────────────────
+
+function Book3D({ book }: { book: Book }) {
   const [coverLoaded, setCoverLoaded] = useState(false)
   const [coverError, setCoverError] = useState(false)
-  const spineHeight = BASE_SPINE_HEIGHT * (book.thickness ?? 1)
+  const H = BASE_H * (book.thickness ?? 1)
+
+  // Half-dimensions for centering transforms
+  const halfH = H / 2
 
   return (
-    <motion.div
-      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={
-        reducedMotion
-          ? { duration: 0.3 }
-          : { duration: 0.5, delay: index * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }
-      }
-      whileHover={reducedMotion ? {} : { y: -4 }}
-      onClick={onClick}
+    <div
       style={{
-        perspective: 800,
-        cursor: 'pointer',
-        display: 'flex',
-        justifyContent: 'center',
+        // The perspective container — needs enough room for the 3D object + perspective
+        width: W + D,
+        height: H + D,
+        perspective: 1200,
+        perspectiveOrigin: '50% 30%',
       }}
     >
-      {/* 3D book container — rotated to show from above-left */}
+      {/* 3D object — all faces positioned relative to this container's center */}
       <div
         style={{
-          width: BOOK_WIDTH,
-          height: spineHeight,
+          width: W,
+          height: H,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: 'rotateX(15deg) rotateY(-5deg)',
-          filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.4))',
-          transition: 'filter 0.3s ease',
+          // Slight rotation so we see the top face and right edge
+          transform: `
+            translateX(${D * 0.15}px)
+            translateY(${D * 0.35}px)
+            rotateX(-25deg)
+            rotateY(20deg)
+          `,
         }}
       >
-        {/* Front face — spine */}
+        {/* FRONT face — the spine (faces the viewer) */}
         <div
           style={{
             position: 'absolute',
-            width: BOOK_WIDTH,
-            height: spineHeight,
+            width: W,
+            height: H,
             backgroundColor: book.spineColor,
+            transform: `translateZ(${halfH}px)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 24px',
-            borderRadius: '2px 2px 0 0',
-            transformStyle: 'preserve-3d',
+            padding: '0 28px',
             backfaceVisibility: 'hidden',
           }}
         >
           <span
             style={{
-              color: 'rgba(255,255,255,0.7)',
-              fontSize: 12,
+              color: 'rgba(255,255,255,0.65)',
+              fontSize: 11,
               fontWeight: 500,
-              letterSpacing: '0.05em',
+              letterSpacing: '0.06em',
               textTransform: 'uppercase',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '30%',
+              maxWidth: '35%',
             }}
           >
             {book.author}
@@ -87,32 +81,47 @@ function Book3D({
           <span
             style={{
               color: '#fff',
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 600,
               letterSpacing: '0.02em',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '40%',
+              maxWidth: '45%',
               textAlign: 'center',
             }}
           >
             {book.title}
           </span>
-          <div style={{ width: '12%' }} />
+          <div style={{ width: 20 }} />
         </div>
 
-        {/* Top face — cover art */}
+        {/* BACK face — hidden from this angle but completes the box */}
         <div
           style={{
             position: 'absolute',
-            width: BOOK_WIDTH,
-            height: BOOK_DEPTH,
+            width: W,
+            height: H,
             backgroundColor: book.spineColor,
-            transform: `rotateX(-90deg) translateZ(0px) translateY(-${BOOK_DEPTH}px)`,
-            transformOrigin: 'top',
+            transform: `translateZ(-${halfH}px) rotateY(180deg)`,
+            filter: 'brightness(0.7)',
+            backfaceVisibility: 'hidden',
+          }}
+        />
+
+        {/* TOP face — the book cover (visible because we're looking down) */}
+        <div
+          style={{
+            position: 'absolute',
+            width: W,
+            height: D,
+            backgroundColor: book.spineColor,
+            transform: `
+              rotateX(90deg)
+              translateZ(0px)
+              translateY(-${D / 2}px)
+            `,
             overflow: 'hidden',
-            borderRadius: '2px 2px 0 0',
             backfaceVisibility: 'hidden',
           }}
         >
@@ -131,7 +140,6 @@ function Book3D({
               }}
             />
           )}
-          {/* Fallback gradient with title */}
           {(coverError || !coverLoaded) && (
             <div
               style={{
@@ -141,13 +149,13 @@ function Book3D({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: 16,
+                padding: 20,
               }}
             >
               <span
                 style={{
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: 16,
+                  color: 'rgba(255,255,255,0.4)',
+                  fontSize: 18,
                   fontWeight: 600,
                   textAlign: 'center',
                 }}
@@ -158,64 +166,234 @@ function Book3D({
           )}
         </div>
 
-        {/* Right face — page edges */}
+        {/* BOTTOM face */}
         <div
           style={{
             position: 'absolute',
-            width: BOOK_DEPTH,
-            height: spineHeight,
-            right: 0,
-            transform: `rotateY(90deg) translateZ(0px)`,
-            transformOrigin: 'right',
+            width: W,
+            height: D,
+            backgroundColor: book.spineColor,
+            transform: `
+              rotateX(-90deg)
+              translateZ(${H}px)
+              translateY(-${D / 2}px)
+            `,
+            filter: 'brightness(0.6)',
+            backfaceVisibility: 'hidden',
+          }}
+        />
+
+        {/* RIGHT face — page edges */}
+        <div
+          style={{
+            position: 'absolute',
+            width: D,
+            height: H,
+            transform: `
+              rotateY(90deg)
+              translateZ(${W - D / 2}px)
+              translateX(${D / 2}px)
+            `,
             background:
-              'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 1px, #EDE7DB 1px, #EDE7DB 3px)',
-            borderRadius: '0 2px 2px 0',
+              'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            backfaceVisibility: 'hidden',
+          }}
+        />
+
+        {/* LEFT face — spine edge (dark) */}
+        <div
+          style={{
+            position: 'absolute',
+            width: D,
+            height: H,
+            backgroundColor: book.spineColor,
+            transform: `
+              rotateY(-90deg)
+              translateZ(${D / 2}px)
+              translateX(-${D / 2}px)
+            `,
+            filter: 'brightness(0.75)',
             backfaceVisibility: 'hidden',
           }}
         />
       </div>
+    </div>
+  )
+}
+
+// ── Main Bookshelf Component (single book for now) ────────────
+
+export default function Bookshelf({ onClose }: { onClose?: () => void }) {
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null)
+  const reducedMotion = useReducedMotion() ?? false
+
+  const handleClose = useCallback(() => {
+    if (selectedBook) {
+      setSelectedBook(null)
+    } else {
+      onClose?.()
+    }
+  }, [selectedBook, onClose])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleClose])
+
+  // Just the first book for now while we nail the 3D
+  const book = books[0]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: selectedBook ? selectedBook.accentColor : '#141414',
+        transition: 'background-color 0.5s ease',
+      }}
+    >
+      {/* Top bar */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '20px 32px',
+        }}
+      >
+        <button
+          onClick={handleClose}
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            border: 'none',
+            color: '#fff',
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 20,
+          }}
+          aria-label="Close bookshelf"
+        >
+          {'\u2715'}
+        </button>
+        <h1
+          style={{
+            color: 'rgba(255,255,255,0.5)',
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+          }}
+        >
+          Bookshelf
+        </h1>
+        <div style={{ width: 40 }} />
+      </div>
+
+      {/* Single book — centered */}
+      <AnimatePresence mode="wait">
+        {!selectedBook && (
+          <motion.div
+            key="shelf"
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            onClick={() => setSelectedBook(book)}
+            style={{ cursor: 'pointer' }}
+          >
+            <Book3D book={book} />
+          </motion.div>
+        )}
+        {selectedBook && (
+          <motion.div
+            key="detail"
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+            style={{
+              display: 'flex',
+              gap: 48,
+              alignItems: 'center',
+              padding: '0 32px',
+              maxWidth: 900,
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+            }}
+          >
+            <DetailBook3D book={selectedBook} />
+            <DetailText book={selectedBook} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
 
-// ── DetailBook3D (detail view — upright book showing cover) ────
+// ── Detail Book (upright, showing cover) ──────────────────────
 
 function DetailBook3D({ book }: { book: Book }) {
   const [coverLoaded, setCoverLoaded] = useState(false)
   const [coverError, setCoverError] = useState(false)
-  const spineHeight = BASE_SPINE_HEIGHT * (book.thickness ?? 1)
-  const coverWidth = 280
-  const coverHeight = 420
+  const thickness = BASE_H * (book.thickness ?? 1)
+  const coverW = 260
+  const coverH = 380
+  const halfT = thickness / 2
 
   return (
     <div
       style={{
-        perspective: 1000,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: 460,
+        perspective: 1200,
+        perspectiveOrigin: '50% 50%',
+        width: coverW + thickness,
+        height: coverH + thickness,
+        flexShrink: 0,
       }}
     >
       <div
         style={{
-          width: coverWidth,
-          height: coverHeight,
+          width: coverW,
+          height: coverH,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: 'rotateY(-25deg) rotateX(2deg)',
-          filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.5))',
+          transform: `
+            translateX(${thickness * 0.6}px)
+            rotateY(-30deg)
+            rotateX(3deg)
+          `,
         }}
       >
-        {/* Cover face (front) */}
+        {/* Cover (front) */}
         <div
           style={{
             position: 'absolute',
-            width: coverWidth,
-            height: coverHeight,
+            width: coverW,
+            height: coverH,
             backgroundColor: book.spineColor,
-            borderRadius: '0 4px 4px 0',
+            transform: `translateZ(${halfT}px)`,
             overflow: 'hidden',
+            borderRadius: '0 3px 3px 0',
             backfaceVisibility: 'hidden',
           }}
         >
@@ -244,46 +422,70 @@ function DetailBook3D({ book }: { book: Book }) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: 32,
-                gap: 12,
+                padding: 28,
+                gap: 10,
               }}
             >
-              <span style={{ color: '#fff', fontSize: 24, fontWeight: 700, textAlign: 'center' }}>
+              <span style={{ color: '#fff', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>
                 {book.title}
               </span>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>{book.author}</span>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{book.author}</span>
             </div>
           )}
         </div>
 
-        {/* Spine (left side) */}
+        {/* Back cover */}
         <div
           style={{
             position: 'absolute',
-            width: spineHeight,
-            height: coverHeight,
-            left: 0,
+            width: coverW,
+            height: coverH,
             backgroundColor: book.spineColor,
-            transform: `rotateY(-90deg) translateZ(0px)`,
-            transformOrigin: 'left',
-            borderRadius: '4px 0 0 4px',
-            filter: 'brightness(0.85)',
+            transform: `translateZ(-${halfT}px) rotateY(180deg)`,
+            filter: 'brightness(0.7)',
             backfaceVisibility: 'hidden',
           }}
         />
 
-        {/* Page edges (right side) */}
+        {/* Spine (left edge) */}
         <div
           style={{
             position: 'absolute',
-            width: spineHeight,
-            height: coverHeight,
-            right: 0,
-            transform: `rotateY(90deg)`,
-            transformOrigin: 'right',
+            width: thickness,
+            height: coverH,
+            backgroundColor: book.spineColor,
+            transform: `rotateY(-90deg) translateZ(${thickness / 2}px) translateX(-${thickness / 2}px)`,
+            filter: 'brightness(0.85)',
+            backfaceVisibility: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span
+            style={{
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: 10,
+              fontWeight: 600,
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {book.title}
+          </span>
+        </div>
+
+        {/* Page edges (right) */}
+        <div
+          style={{
+            position: 'absolute',
+            width: thickness,
+            height: coverH,
+            transform: `rotateY(90deg) translateZ(${coverW - thickness / 2}px) translateX(${thickness / 2}px)`,
             background:
-              'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 1px, #EDE7DB 1px, #EDE7DB 3px)',
-            borderRadius: '0 2px 2px 0',
+              'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
             backfaceVisibility: 'hidden',
           }}
         />
@@ -292,13 +494,25 @@ function DetailBook3D({ book }: { book: Book }) {
         <div
           style={{
             position: 'absolute',
-            width: coverWidth,
-            height: spineHeight,
-            top: 0,
-            transform: `rotateX(90deg)`,
-            transformOrigin: 'top',
+            width: coverW,
+            height: thickness,
+            transform: `rotateX(90deg) translateZ(${thickness / 2}px) translateY(-${thickness / 2}px)`,
             background:
-              'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 1px, #EDE7DB 1px, #EDE7DB 3px)',
+              'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            backfaceVisibility: 'hidden',
+          }}
+        />
+
+        {/* Bottom edge */}
+        <div
+          style={{
+            position: 'absolute',
+            width: coverW,
+            height: thickness,
+            transform: `rotateX(-90deg) translateZ(${coverH - thickness / 2}px) translateY(${thickness / 2}px)`,
+            background:
+              'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            filter: 'brightness(0.85)',
             backfaceVisibility: 'hidden',
           }}
         />
@@ -307,289 +521,68 @@ function DetailBook3D({ book }: { book: Book }) {
   )
 }
 
-// ── Main Bookshelf Component ──────────────────────────────────
+// ── Detail Text ───────────────────────────────────────────────
 
-export default function Bookshelf({ onClose }: { onClose?: () => void }) {
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null)
-  const reducedMotion = useReducedMotion() ?? false
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const handleClose = useCallback(() => {
-    if (selectedBook) {
-      setSelectedBook(null)
-    } else {
-      onClose?.()
-    }
-  }, [selectedBook, onClose])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [handleClose])
-
+function DetailText({ book }: { book: Book }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        backgroundColor: selectedBook ? selectedBook.accentColor : '#141414',
-        transition: 'background-color 0.5s ease',
-      }}
-    >
-
-      {/* Top bar */}
-      <div
+    <div style={{ flex: 1, minWidth: 260, maxWidth: 400, color: '#fff' }}>
+      <h2
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '20px 32px',
-          flexShrink: 0,
+          fontSize: 32,
+          fontWeight: 700,
+          lineHeight: 1.15,
+          marginBottom: 8,
+          fontFamily: 'Georgia, "Times New Roman", serif',
         }}
       >
-        {/* Back / close button */}
-        <button
-          onClick={handleClose}
-          style={{
-            background: 'rgba(255,255,255,0.1)',
-            border: 'none',
-            color: '#fff',
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20,
-            backdropFilter: 'saturate(1.2)',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-          aria-label={selectedBook ? 'Back to shelf' : 'Close bookshelf'}
-        >
-          {selectedBook ? '\u2190' : '\u2715'}
-        </button>
-
-        {!selectedBook && (
-          <h1
+        {book.title}
+      </h2>
+      <p style={{ fontSize: 15, fontStyle: 'italic', opacity: 0.7, marginBottom: 24 }}>
+        {book.author}
+      </p>
+      <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.2)', marginBottom: 24 }} />
+      <p style={{ fontSize: 15, lineHeight: 1.7, opacity: 0.9, marginBottom: 28 }}>
+        {book.description}
+      </p>
+      {book.personalNote && (
+        <div style={{ borderLeft: '3px solid rgba(255,255,255,0.3)', paddingLeft: 20, marginBottom: 28 }}>
+          <p
             style={{
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: 13,
-              fontWeight: 500,
-              letterSpacing: '0.12em',
+              fontSize: 11,
+              fontWeight: 600,
               textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              opacity: 0.5,
+              marginBottom: 8,
             }}
           >
-            Bookshelf
-          </h1>
-        )}
-
-        <div style={{ width: 40 }} />
-      </div>
-
-      {/* Content area */}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <AnimatePresence mode="wait">
-          {selectedBook ? (
-            <motion.div
-              key={`detail-${selectedBook.isbn}`}
-              initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: -40 }}
-              transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-              style={{
-                height: '100%',
-                overflow: 'auto',
-                display: 'flex',
-                justifyContent: 'center',
-                padding: '0 32px 60px',
-              }}
-            >
-              <DetailView book={selectedBook} />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="shelf"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              ref={scrollRef}
-              style={{
-                height: '100%',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                padding: '20px 32px 80px',
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: 800,
-                  margin: '0 auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 80,
-                }}
-              >
-                {books.map((book, i) => (
-                  <Book3D
-                    key={book.isbn}
-                    book={book}
-                    index={i}
-                    onClick={() => setSelectedBook(book)}
-                    reducedMotion={reducedMotion}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
-  )
-}
-
-// ── Detail View ────────────────────────────────────────────────
-
-function DetailView({ book }: { book: Book }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 64,
-        alignItems: 'flex-start',
-        maxWidth: 960,
-        width: '100%',
-        paddingTop: 20,
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-      }}
-    >
-      {/* Left — upright 3D book */}
-      <div style={{ flexShrink: 0 }}>
-        <DetailBook3D book={book} />
-      </div>
-
-      {/* Right — text details */}
-      <div
+            Keith's Take
+          </p>
+          <p style={{ fontSize: 14, lineHeight: 1.65, opacity: 0.85, fontStyle: 'italic' }}>
+            {book.personalNote}
+          </p>
+        </div>
+      )}
+      <a
+        href={`https://www.goodreads.com/search?q=${encodeURIComponent(book.title + ' ' + book.author)}`}
+        target="_blank"
+        rel="noopener noreferrer"
         style={{
-          flex: 1,
-          minWidth: 280,
-          maxWidth: 440,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 20px',
+          border: '1px solid rgba(255,255,255,0.25)',
+          borderRadius: 6,
           color: '#fff',
+          textDecoration: 'none',
+          fontSize: 13,
+          fontWeight: 500,
         }}
       >
-        <h2
-          style={{
-            fontSize: 36,
-            fontWeight: 700,
-            lineHeight: 1.15,
-            marginBottom: 8,
-            fontFamily: 'Georgia, "Times New Roman", serif',
-          }}
-        >
-          {book.title}
-        </h2>
-        <p
-          style={{
-            fontSize: 16,
-            fontStyle: 'italic',
-            opacity: 0.7,
-            marginBottom: 24,
-          }}
-        >
-          {book.author}
-        </p>
-
-        <hr
-          style={{
-            border: 'none',
-            borderTop: '1px solid rgba(255,255,255,0.2)',
-            marginBottom: 24,
-          }}
-        />
-
-        <p
-          style={{
-            fontSize: 16,
-            lineHeight: 1.7,
-            opacity: 0.9,
-            marginBottom: 32,
-          }}
-        >
-          {book.description}
-        </p>
-
-        {book.personalNote && (
-          <div
-            style={{
-              borderLeft: '3px solid rgba(255,255,255,0.3)',
-              paddingLeft: 20,
-              marginBottom: 32,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                opacity: 0.5,
-                marginBottom: 8,
-              }}
-            >
-              Keith's Take
-            </p>
-            <p style={{ fontSize: 15, lineHeight: 1.65, opacity: 0.85, fontStyle: 'italic' }}>
-              {book.personalNote}
-            </p>
-          </div>
-        )}
-
-        {/* Goodreads link */}
-        <a
-          href={`https://www.goodreads.com/search?q=${encodeURIComponent(book.title + ' ' + book.author)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            border: '1px solid rgba(255,255,255,0.25)',
-            borderRadius: 6,
-            color: '#fff',
-            textDecoration: 'none',
-            fontSize: 14,
-            fontWeight: 500,
-            transition: 'background 0.2s, border-color 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'
-          }}
-        >
-          View on Goodreads
-          <span style={{ fontSize: 12 }}>{'\u2197'}</span>
-        </a>
-      </div>
+        View on Goodreads
+        <span style={{ fontSize: 11 }}>{'\u2197'}</span>
+      </a>
     </div>
   )
 }
