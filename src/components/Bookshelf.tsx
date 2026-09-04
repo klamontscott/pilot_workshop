@@ -3,46 +3,41 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { books, getCoverUrl, type Book } from '../lib/bookData'
 
 // ── Dimensions ─────────────────────────────────────────────────
-// Book lying flat. Viewed from slightly above and to the right.
+// Book lying flat. Viewed from slightly above. Spine faces camera directly.
 //   W = spine length (left-to-right)
 //   D = cover depth (front-to-back)
-//   H = thickness (vertical)
+//   H = total thickness (vertical, including cover overhang)
 //
-// CSS 3D cuboid face positions (container W×H, depth D):
-//   Front  (W×H): translateZ(D/2)
-//   Back   (W×H): rotateY(180deg) translateZ(D/2)
-//   Top    (W×D): translateY((H-D)/2) rotateX(90deg) translateZ(H/2)
-//   Bottom (W×D): translateY((H-D)/2) rotateX(-90deg) translateZ(H/2)
-//   Right  (D×H): translateX((W-D)/2) rotateY(90deg) translateZ(W/2)
-//   Left   (D×H): translateX((W-D)/2) rotateY(-90deg) translateZ(W/2)
+// The cover/dust jacket wraps around as one continuous surface.
+// The page block is inset from the cover edges (cover overhangs pages).
 
 const W = 520
 const D = 160
 const BASE_H = 56
+const COVER_OVERHANG = 4 // cover extends past page block on each side
+const SPINE_GROOVE_W = 2 // groove line where spine meets cover
 
 /** Darken a hex color by a factor (0 = black, 1 = unchanged) */
 function darken(hex: string, factor: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
-  const dr = Math.round(r * factor)
-  const dg = Math.round(g * factor)
-  const db = Math.round(b * factor)
-  return `rgb(${dr},${dg},${db})`
+  return `rgb(${Math.round(r * factor)},${Math.round(g * factor)},${Math.round(b * factor)})`
 }
 
-// ── Shelf Book (lying flat) ───────────────────────────────────
+// ── Shelf Book (lying flat, spine parallel to camera) ─────────
 
 function Book3D({ book }: { book: Book }) {
   const [coverLoaded, setCoverLoaded] = useState(false)
   const [coverError, setCoverError] = useState(false)
   const H = Math.round(BASE_H * (book.thickness ?? 1))
+  const pageH = H - COVER_OVERHANG * 2 // page block is thinner than cover
 
   return (
     <div
       style={{
-        width: W + 100,
-        height: H + D + 60,
+        width: W + 60,
+        height: H + D + 80,
         perspective: 1600,
         perspectiveOrigin: '50% 40%',
         display: 'flex',
@@ -51,30 +46,34 @@ function Book3D({ book }: { book: Book }) {
         position: 'relative',
       }}
     >
-      {/* Shadow (separate from 3D container to avoid flattening) */}
+      {/* Shadow */}
       <div
         style={{
           position: 'absolute',
-          width: W * 0.75,
-          height: D * 0.4,
-          bottom: '12%',
-          left: '52%',
-          transform: 'translateX(-50%) skewX(5deg)',
-          background: 'radial-gradient(ellipse at 55% 50%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 40%, transparent 70%)',
+          width: W * 0.7,
+          height: D * 0.35,
+          bottom: '14%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.15) 50%, transparent 70%)',
           borderRadius: '50%',
           pointerEvents: 'none',
         }}
       />
+
+      {/* 3D book — spine faces camera directly (rotateY = 0) */}
       <div
         style={{
           width: W,
           height: H,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: 'rotateX(-18deg) rotateY(-15deg)',
+          transform: 'rotateX(-20deg)',
         }}
       >
-        {/* FRONT — spine (extended 1px top/bottom to close sub-pixel gaps) */}
+        {/* ─── COVER / DUST JACKET (outer shell) ─── */}
+
+        {/* FRONT — spine face (dust jacket wrap) */}
         <div
           style={{
             position: 'absolute',
@@ -88,6 +87,7 @@ function Book3D({ book }: { book: Book }) {
             justifyContent: 'space-between',
             padding: '0 28px',
             backfaceVisibility: 'hidden',
+            borderRadius: '2px 2px 0 0',
           }}
         >
           <span style={spineAuthorStyle}>{book.author}</span>
@@ -95,19 +95,19 @@ function Book3D({ book }: { book: Book }) {
           <div style={{ width: 20 }} />
         </div>
 
-        {/* BACK */}
+        {/* BACK — dust jacket wrap (same color as spine) */}
         <div
           style={{
             position: 'absolute',
             width: W,
             height: H,
-            backgroundColor: darken(book.spineColor, 0.6),
+            backgroundColor: darken(book.spineColor, 0.7),
             transform: `rotateY(180deg) translateZ(${D / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
 
-        {/* TOP — cover */}
+        {/* TOP — cover art (dust jacket surface) */}
         <div
           style={{
             position: 'absolute',
@@ -117,9 +117,9 @@ function Book3D({ book }: { book: Book }) {
             transform: `translateY(${(H - D) / 2}px) rotateX(90deg) translateZ(${H / 2}px)`,
             overflow: 'hidden',
             backfaceVisibility: 'hidden',
-            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.15)',
           }}
         >
+          {/* Cover image */}
           {!coverError && (
             <img
               src={getCoverUrl(book.isbn, 'M')}
@@ -154,9 +154,22 @@ function Book3D({ book }: { book: Book }) {
               </span>
             </div>
           )}
+
+          {/* Spine groove — dark line near the front edge of the cover */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: SPINE_GROOVE_W + 6,
+              height: SPINE_GROOVE_W,
+              background: 'rgba(0,0,0,0.25)',
+              pointerEvents: 'none',
+            }}
+          />
         </div>
 
-        {/* BOTTOM */}
+        {/* BOTTOM — cover underside */}
         <div
           style={{
             position: 'absolute',
@@ -168,7 +181,7 @@ function Book3D({ book }: { book: Book }) {
           }}
         />
 
-        {/* RIGHT — page edges (extended 1px to close gaps) */}
+        {/* RIGHT — cover edge + inset page block */}
         <div
           style={{
             position: 'absolute',
@@ -176,22 +189,47 @@ function Book3D({ book }: { book: Book }) {
             height: H + 2,
             top: -1,
             transform: `translateX(${(W - D) / 2}px) rotateY(90deg) translateZ(${W / 2}px)`,
-            background: 'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            backgroundColor: book.spineColor,
             backfaceVisibility: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }}
-        />
+        >
+          {/* Top cover overhang */}
+          <div style={{ height: COVER_OVERHANG + 1, backgroundColor: book.spineColor }} />
+          {/* Page block (inset, with ribs) */}
+          <div
+            style={{
+              flex: 1,
+              margin: `0 ${COVER_OVERHANG}px`,
+              background: `
+                repeating-linear-gradient(
+                  to bottom,
+                  #F5F0E8 0px,
+                  #F5F0E8 0.8px,
+                  #E8E0D2 0.8px,
+                  #E8E0D2 1.6px
+                )
+              `,
+              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1), inset 0 -1px 2px rgba(0,0,0,0.1)',
+            }}
+          />
+          {/* Bottom cover overhang */}
+          <div style={{ height: COVER_OVERHANG + 1, backgroundColor: book.spineColor }} />
+        </div>
 
-        {/* LEFT — spine edge */}
+        {/* LEFT — spine edge (dust jacket wrap, no pages visible) */}
         <div
           style={{
             position: 'absolute',
             width: D,
             height: H,
-            backgroundColor: darken(book.spineColor, 0.7),
+            backgroundColor: darken(book.spineColor, 0.75),
             transform: `translateX(${(W - D) / 2}px) rotateY(-90deg) translateZ(${W / 2}px)`,
             backfaceVisibility: 'hidden',
           }}
         />
+
       </div>
     </div>
   )
@@ -361,6 +399,7 @@ function DetailBook3D({ book }: { book: Book }) {
   const thickness = Math.round(BASE_H * (book.thickness ?? 1))
   const coverW = 260
   const coverH = 380
+  const pageThickness = thickness - COVER_OVERHANG * 2
 
   return (
     <div
@@ -446,7 +485,7 @@ function DetailBook3D({ book }: { book: Book }) {
           }}
         />
 
-        {/* Spine (left edge) */}
+        {/* Spine (left edge) — same color as cover */}
         <div
           style={{
             position: 'absolute',
@@ -475,29 +514,53 @@ function DetailBook3D({ book }: { book: Book }) {
           </span>
         </div>
 
-        {/* Page edges (right) */}
+        {/* Page edges (right) — with cover overhang */}
         <div
           style={{
             position: 'absolute',
             width: thickness,
             height: coverH,
             transform: `translateX(${(coverW - thickness) / 2}px) rotateY(90deg) translateZ(${coverW / 2}px)`,
-            background: 'repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            backgroundColor: book.spineColor,
             backfaceVisibility: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }}
-        />
+        >
+          <div style={{ height: COVER_OVERHANG, backgroundColor: book.spineColor }} />
+          <div
+            style={{
+              flex: 1,
+              margin: `0 ${COVER_OVERHANG}px`,
+              background: `repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 0.8px, #E8E0D2 0.8px, #E8E0D2 1.6px)`,
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.08)',
+            }}
+          />
+          <div style={{ height: COVER_OVERHANG, backgroundColor: book.spineColor }} />
+        </div>
 
-        {/* Top edge */}
+        {/* Top edge — page block with cover overhang */}
         <div
           style={{
             position: 'absolute',
             width: coverW,
             height: thickness,
             transform: `translateY(${(coverH - thickness) / 2}px) rotateX(90deg) translateZ(${coverH / 2}px)`,
-            background: 'repeating-linear-gradient(to bottom, #F5F0E8 0px, #F5F0E8 2px, #EBE4D6 2px, #EBE4D6 4px)',
+            backgroundColor: book.spineColor,
             backfaceVisibility: 'hidden',
+            display: 'flex',
           }}
-        />
+        >
+          <div style={{ width: COVER_OVERHANG, backgroundColor: book.spineColor }} />
+          <div
+            style={{
+              flex: 1,
+              margin: `${COVER_OVERHANG}px 0`,
+              background: `repeating-linear-gradient(to right, #F5F0E8 0px, #F5F0E8 0.8px, #E8E0D2 0.8px, #E8E0D2 1.6px)`,
+            }}
+          />
+          <div style={{ width: COVER_OVERHANG, backgroundColor: book.spineColor }} />
+        </div>
 
         {/* Bottom edge */}
         <div
