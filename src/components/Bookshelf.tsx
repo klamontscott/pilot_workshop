@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { books, getCoverUrl, type Book } from '../lib/bookData'
+import { books, getCoverUrl, getTextureCSS, getNoiseBg, type Book } from '../lib/bookData'
 
 // ── Dimensions ─────────────────────────────────────────────────
 // Book lying flat. Viewed from slightly above. Spine faces camera directly.
@@ -11,10 +11,10 @@ import { books, getCoverUrl, type Book } from '../lib/bookData'
 // The cover/dust jacket wraps around as one continuous surface.
 // The page block is inset from the cover edges (cover overhangs pages).
 
-const W = 520
-const D = 160
-const BASE_H = 56
-const COVER_OVERHANG = 4 // cover extends past page block on each side
+const W = 825
+const D = 140
+const BASE_H = 100
+const COVER_OVERHANG = 6 // cover extends past page block on each side
 const SPINE_GROOVE_W = 2 // groove line where spine meets cover
 
 /** Darken a hex color by a factor (0 = black, 1 = unchanged) */
@@ -36,10 +36,10 @@ function Book3D({ book }: { book: Book }) {
   return (
     <div
       style={{
-        width: W + 60,
-        height: H + D + 80,
-        perspective: 1600,
-        perspectiveOrigin: '50% 40%',
+        width: W + 80,
+        height: H + D + 100,
+        perspective: 2000,
+        perspectiveOrigin: '50% 50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -68,7 +68,7 @@ function Book3D({ book }: { book: Book }) {
           height: H,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: 'rotateX(-20deg)',
+          transform: 'rotateX(-6deg)',
         }}
       >
         {/* ─── COVER / DUST JACKET (outer shell) ─── */}
@@ -87,12 +87,52 @@ function Book3D({ book }: { book: Book }) {
             justifyContent: 'space-between',
             padding: '0 28px',
             backfaceVisibility: 'hidden',
-            borderRadius: '2px 2px 0 0',
+            borderRadius: 5,
+            overflow: 'hidden',
           }}
         >
           <span style={spineAuthorStyle}>{book.author}</span>
           <span style={spineTitleStyle}>{book.title}</span>
           <div style={{ width: 20 }} />
+
+          {/* Texture + noise overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: [
+                book.texture ? getTextureCSS(book.texture) : '',
+                getNoiseBg(book.isbn),
+              ].filter(Boolean).join(', '),
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Spine groove — dark channel at top where cover dips into spine */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 10,
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 45%, transparent 100%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Bottom curve shadow — cover wrapping underneath */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 12,
+              background: 'linear-gradient(to top, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)',
+              pointerEvents: 'none',
+            }}
+          />
         </div>
 
         {/* BACK — dust jacket wrap (same color as spine) */}
@@ -104,6 +144,7 @@ function Book3D({ book }: { book: Book }) {
             backgroundColor: darken(book.spineColor, 0.7),
             transform: `rotateY(180deg) translateZ(${D / 2}px)`,
             backfaceVisibility: 'hidden',
+            borderRadius: 5,
           }}
         />
 
@@ -117,6 +158,7 @@ function Book3D({ book }: { book: Book }) {
             transform: `translateY(${(H - D) / 2}px) rotateX(90deg) translateZ(${H / 2}px)`,
             overflow: 'hidden',
             backfaceVisibility: 'hidden',
+            borderRadius: '5px 5px 0 0',
           }}
         >
           {/* Cover image */}
@@ -155,15 +197,15 @@ function Book3D({ book }: { book: Book }) {
             </div>
           )}
 
-          {/* Spine groove — dark line near the front edge of the cover */}
+          {/* Spine groove — shadow where cover curves down to meet spine */}
           <div
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
-              bottom: SPINE_GROOVE_W + 6,
-              height: SPINE_GROOVE_W,
-              background: 'rgba(0,0,0,0.25)',
+              bottom: 0,
+              height: 10,
+              background: 'linear-gradient(to top, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)',
               pointerEvents: 'none',
             }}
           />
@@ -193,6 +235,8 @@ function Book3D({ book }: { book: Book }) {
             backfaceVisibility: 'hidden',
             display: 'flex',
             flexDirection: 'column',
+            borderRadius: '0 5px 5px 0',
+            overflow: 'hidden',
           }}
         >
           {/* Top cover overhang */}
@@ -212,6 +256,7 @@ function Book3D({ book }: { book: Book }) {
                 )
               `,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1), inset 0 -1px 2px rgba(0,0,0,0.1)',
+              borderRadius: 3,
             }}
           />
           {/* Bottom cover overhang */}
@@ -227,6 +272,7 @@ function Book3D({ book }: { book: Book }) {
             backgroundColor: darken(book.spineColor, 0.75),
             transform: `translateX(${(W - D) / 2}px) rotateY(-90deg) translateZ(${W / 2}px)`,
             backfaceVisibility: 'hidden',
+            borderRadius: '5px 0 0 5px',
           }}
         />
 
@@ -239,7 +285,7 @@ function Book3D({ book }: { book: Book }) {
 
 const spineAuthorStyle: React.CSSProperties = {
   color: 'rgba(255,255,255,0.65)',
-  fontSize: 11,
+  fontSize: 16,
   fontWeight: 500,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
@@ -251,7 +297,7 @@ const spineAuthorStyle: React.CSSProperties = {
 
 const spineTitleStyle: React.CSSProperties = {
   color: '#fff',
-  fontSize: 13,
+  fontSize: 20,
   fontWeight: 600,
   letterSpacing: '0.02em',
   whiteSpace: 'nowrap',
@@ -360,7 +406,7 @@ export default function Bookshelf({ onClose }: { onClose?: () => void }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
             onClick={() => setSelectedBook(book)}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', marginBottom: '11vh' }}
           >
             <Book3D book={book} />
           </motion.div>
